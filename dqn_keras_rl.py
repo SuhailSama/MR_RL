@@ -43,12 +43,13 @@ dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmu
 dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 
 # Define 'test' for testing an existing network weights or 'train' to train a new one!
-mode = 'test'
+mode = 'train'
 
 if mode == 'train':
+    print("training started....")
     filename = '400kit_rn4_maior2_mem20k_20acleme_target1000_epsgr1'
-    hist = dqn.fit(env, nb_steps=300000, visualize=False, verbose=2)
-    with open('C:/Users/JMPF/PycharmProjects/ShipAI/ShipAI/_experiments/history_dqn_test_'+ filename + '.pickle', 'wb') as handle:
+    hist = dqn.fit(env, nb_steps=30000, visualize=False, verbose=2)
+    with open('D:/Projects/MMRs/MR_RL/_experiments/history_dqn_test_'+ filename + '.pickle', 'wb') as handle:
         pickle.dump(hist.history, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # After training is done, we save the final weights.
