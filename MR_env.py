@@ -5,11 +5,17 @@ from gym import Env, spaces
 import numpy as np
 from shapely.geometry import LineString, Point
 from viewer import Viewer
-from ship_data import ShipExperiment
+from MR_data import MRExperiment
 from simulator import Simulator
 
 
-class ShipEnv(Env):
+""
+To do :
+- Write Reward Function 
+- 
+
+""
+class MR_Env(Env):
     def __init__(self, type='continuous', action_dim = 2):
         self.type = type
         self.action_dim = action_dim
@@ -26,7 +32,7 @@ class ShipEnv(Env):
                 self.action_space = spaces.Discrete(21)
             self.observation_space = spaces.Box(low=np.array([0, -np.pi / 2, 0, -4, -0.4]), high=np.array([150, np.pi / 2, 4.0, 4.0, 0.4]))
             self.init_space = spaces.Box(low=np.array([0, -np.pi / 15, 1.0, 0.2, -0.01]), high=np.array([30, np.pi / 15, 2.0, 0.3, 0.01]))
-        self.ship_data = None
+        self.MR_data = None
         self.name_experiment = None
         self.last_pos = np.zeros(3)
         self.last_action = np.zeros(self.action_dim)
@@ -71,8 +77,8 @@ class ShipEnv(Env):
         rew = self.calculate_reward(obs=obs)
         self.last_pos = [state_prime[0], state_prime[1], state_prime[2]]
         self.last_action = np.array([angle_action, rot_action])
-        if self.ship_data is not None:
-            self.ship_data.new_transition(state_prime, obs, self.last_action, rew)
+        if self.MR_data is not None:
+            self.MR_data.new_transition(state_prime, obs, self.last_action, rew)
         info = dict()
         return obs, rew, dn, info
 
@@ -106,9 +112,9 @@ class ShipEnv(Env):
                 print("\n Smashed")
             if self.viewer is not None:
                 self.viewer.end_episode()
-            if self.ship_data is not None:
-                if self.ship_data.iterations > 0:
-                    self.ship_data.save_experiment(self.name_experiment)
+            if self.MR_data is not None:
+                if self.MR_data.iterations > 0:
+                    self.MR_data.save_experiment(self.name_experiment)
             return True
         else:
             return False
@@ -131,10 +137,10 @@ class ShipEnv(Env):
         self.last_pos = np.array([self.start_pos[0], init[0],  init[1]])
         print('Reseting position')
         state = self.simulator.get_state()
-        if self.ship_data is not None:
-            if self.ship_data.iterations > 0:
-                self.ship_data.save_experiment(self.name_experiment)
-            self.ship_data.new_iter(state, self.convert_state(state), np.zeros(len(self.last_action)), np.array([0]))
+        if self.MR_data is not None:
+            if self.MR_data.iterations > 0:
+                self.MR_data.save_experiment(self.name_experiment)
+            self.MR_data.new_iter(state, self.convert_state(state), np.zeros(len(self.last_action)), np.array([0]))
         if self.viewer is not None:
             self.viewer.end_episode()
         return self.convert_state(state)
@@ -159,7 +165,7 @@ class ShipEnv(Env):
 
     def set_save_experice(self, name='experiment_ssn_ddpg_10iter'):
         assert type(name) == type(""), 'name must be a string'
-        self.ship_data = ShipExperiment()
+        self.MR_data = MRExperiment()
         self.name_experiment = name
 
     def set_test_performace(self):
@@ -168,8 +174,8 @@ class ShipEnv(Env):
 if __name__ == '__main__':
     mode = 'normal'
     if mode == 'normal':
-        env = ShipEnv()
-        shipExp = ShipExperiment()
+        env = MR_Env()
+        shipExp = MRExperiment()
         for i_episode in range(10):
             observation = env.reset()
             for t in range(10000):
