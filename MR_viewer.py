@@ -6,47 +6,36 @@ import tkinter
 
 class Viewer:
     def __init__(self):
-        self.l_vessel = 50  # Metade do comprimento da embarcacao
+        self.l_MR = 5  # Metade do comprimento da embarcacao
         #first we initialize the turtle settings
         turtle.speed(0)
         turtle.mode('logo')
         turtle.setworldcoordinates(0, -500, 2000, 500)
         turtle.setup()
         turtle.screensize(4000, 1000, 'white')
-        w_vessel = 5  # Metade da largura da embarcacao
-        turtle.register_shape('vessel', (
-            (0, self.l_vessel), (w_vessel, self.l_vessel / 2), (w_vessel, -self.l_vessel), (-w_vessel, -self.l_vessel),
-            (-w_vessel, self.l_vessel / 2)))
-        turtle.register_shape('rudder', ((-1, 0), (1, 0), (1, -10), (-1, -10)))
+        w_MR = 5  # MR width
+        turtle.register_shape('MR', (
+            (0, self.l_MR), (w_MR, self.l_MR ), (w_MR, -self.l_MR), (-w_MR, -self.l_MR),
+            (-w_MR, self.l_MR)))
         turtle.degrees()
 
         #
-        self.vessel = turtle.Turtle()
-        self.vessel.shape('vessel')
-        self.vessel.fillcolor('red')
-        self.vessel.penup()
-        self.rudder = turtle.Turtle()
-        self.rudder.shape('rudder')
-        self.rudder.fillcolor('green')
-        self.rudder.penup()
+        self.MR = turtle.Turtle()
+        self.MR.shape('MR')
+        self.MR.fillcolor('red')
+        self.MR.penup()
         self.step_count = 0
         self.steps_for_stamp = 30
 
-    def plot_position(self, x, y, theta, rud_angle):
-        converted_angle = theta*180/math.pi #convertion may apply if you use radians
-        # turtle.fillcolor('green')
-        self.vessel.setpos(x, y)
-        self.vessel.setheading(converted_angle)
-        self.rudder.setpos(x - self.l_vessel * math.cos(math.pi * converted_angle / 180),
-                           y - self.l_vessel * math.sin(math.pi * converted_angle / 180))
-        self.rudder.setheading(converted_angle - rud_angle)
-        self.vessel.pendown()
+    def plot_position(self, x, y):
+        self.MR.setpos(x, y)
+        self.MR.pendown()
 
     def plot_guidance_line(self, point_a, point_b):
-        self.vessel.setpos(point_a[0], point_a[1])
-        self.vessel.pendown()
-        self.vessel.setpos(point_b[0], point_b[1])
-        self.vessel.penup()
+        self.MR.setpos(point_a[0], point_a[1])
+        self.MR.pendown()
+        self.MR.setpos(point_b[0], point_b[1])
+        self.MR.penup()
 
     def  plot_goal(self, point, factor):
         turtle.speed(0)
@@ -75,11 +64,10 @@ class Viewer:
         turtle.mainloop()
 
     def end_episode(self, ):
-        self.vessel.penup()
-        self.rudder.penup()
+        self.MR.penup()
 
     def restart_plot(self):
-        self.vessel.pendown()
+        self.MR.pendown()
 
 if __name__ == '__main__':
     viewer = Viewer()

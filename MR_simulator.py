@@ -19,6 +19,7 @@ class Simulator:
         x0, y0, vx0, vy0 = state_vector[0], state_vector[1], state_vector[2], state_vector[3]
         self.last_state = np.array([x0, y0, vx0, vy0])
         self.current_action = np.zeros(2)
+        print("self.last_state",self.get_state())
         self.integrator = self.scipy_runge_kutta(self.simulate, self.get_state(), t_bound=self.time_span)
 
     def step(self, f_t, alpha_t):
@@ -26,11 +27,12 @@ class Simulator:
         while not (self.integrator.status == 'finished'):
             self.integrator.step()
         self.last_state = self.integrator.y
+        print("self.last_state",self.integrator.y)
         self.integrator = self.scipy_runge_kutta(self.simulate, self.get_state(), t0=self.integrator.t, t_bound=self.integrator.t+self.time_span)
         return self.last_state
 
 
-    def simulate(self, states):
+    def simulate(self, t, states):
         """
         :param states: Space state
         :return df_states
