@@ -11,7 +11,7 @@ class Simulator:
         self.steps = 0
         self.time_span = 10           # 20 seconds for each iteration
         self.number_iterations = 100  # 100 iterations for each step
-        self.integrator = None
+        self.integrator = None # 
         ##MR Constants
         self.a = 2
 
@@ -43,7 +43,6 @@ class Simulator:
         alpha = self.current_action[1]    #propulsor
 
         # Derivative function
-
         fx1 = x3
         fx2 = x4
 
@@ -53,35 +52,10 @@ class Simulator:
         fx3 = self.a * beta  *np.cos(alpha)
         fx4 = self.a * beta  *np.sin(alpha)
         fx = np.array([fx1, fx2, fx3, fx4])
-        return fx
+        return fx 
 
     def scipy_runge_kutta(self, fun, y0, t0=0, t_bound=10):
         return RK45(fun, t0, y0, t_bound,  rtol=self.time_span/self.number_iterations, atol=1e-4)
-
-    def runge_kutta(self, x, fx, n, hs):
-        k1 = []
-        k2 = []
-        k3 = []
-        k4 = []
-        xk = []
-        ret = np.zeros([n])
-        for i in range(n):
-            k1.append(fx(x)[i]*hs)
-        for i in range(n):
-            xk.append(x[i] + k1[i]*0.5)
-        for i in range(n):
-            k2.append(fx(xk)[i]*hs)
-        for i in range(n):
-            xk[i] = x[i] + k2[i]*0.5
-        for i in range(n):
-            k3.append(fx(xk)[i]*hs)
-        for i in range(n):
-            xk[i] = x[i] + k3[i]
-        for i in range(n):
-            k4.append(fx(xk)[i]*hs)
-        for i in range(n):
-            ret[i] = x[i] + (k1[i] + 2*(k2[i] + k3[i]) + k4[i])/6
-        return ret
 
     def get_state(self):
         return self.last_state
