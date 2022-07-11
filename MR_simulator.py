@@ -19,18 +19,16 @@ class Simulator:
         x0, y0, vx0, vy0 = state_vector[0], state_vector[1], state_vector[2], state_vector[3]
         self.last_state = np.array([x0, y0, vx0, vy0])
         self.current_action = np.zeros(2)
-        print("self.last_state",self.get_state())
         self.integrator = self.scipy_runge_kutta(self.simulate, self.get_state(), t_bound=self.time_span)
 
     def step(self, f_t, alpha_t):
         self.current_action = np.array([f_t, alpha_t])
+        print("current_action: ", self.current_action)
         while not (self.integrator.status == 'finished'):
             self.integrator.step()
         self.last_state = self.integrator.y
-        print("self.last_state",self.integrator.y)
         self.integrator = self.scipy_runge_kutta(self.simulate, self.get_state(), t0=self.integrator.t, t_bound=self.integrator.t+self.time_span)
         return self.last_state
-
 
     def simulate(self, t, states):
         """
@@ -41,18 +39,18 @@ class Simulator:
         x2 = states[1] #v
         x3 = states[2] #du
         x4 = states[3] #dv
-        beta = self.current_action[0]*np.pi/6   #leme (-30 à 30)
-        alpha = self.current_action[1]    #propulsor
+
+        f_t = self.current_action[0]*np.pi/180  
+        alpha_t = self.current_action[1]    
 
         # Derivative function
         fx1 = x3
         fx2 = x4
 
         # simple model
+        fx3 = self.a * f_t  *np.cos(alpha_t)
+        fx4 = self.a * f_t  *np.sin(alpha_t)
 
-        # main model simple -- > the best one:
-        fx3 = self.a * beta  *np.cos(alpha)
-        fx4 = self.a * beta  *np.sin(alpha)
         fx = np.array([fx1, fx2, fx3, fx4])
         return fx 
 

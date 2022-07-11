@@ -22,71 +22,55 @@ class MR_Env(Env):
         assert type == 'continuous' or type == 'discrete', 'type must be continuous or discrete'
         assert action_dim > 0 and action_dim <=2, 'action_dim must be 1 or 2'
         if type == 'continuous':
-            self.action_space = spaces.Box(low=np.array([-1.0, 0]), high=np.array([1.0, 0.2]))
-            self.observation_space = spaces.Box(low=np.array([0, 0, -4, -0.2]), high=np.array([150, 4.0, 4.0, 0.2]))
-            self.init_space = spaces.Box(low=np.array([0, 1.0, 0.2, -0.01]), high=np.array([30, 1.5, 0.3, 0.01]))
-        elif type == 'discrete':
-            if action_dim == 2:
-                self.action_space = spaces.Discrete(63)
-            else:
-                self.action_space = spaces.Discrete(21)
-            self.observation_space = spaces.Box(low=np.array([0,  0, -4, -0.4]), high=np.array([150, 4.0, 4.0, 0.4]))
-            self.init_space = spaces.Box(low=np.array([0,  1.0, 0.2, -0.01]), high=np.array([30, 2.0, 0.3, 0.01]))
+            self.action_space = spaces.Box(low=np.array([2, 20]), high=np.array([5, 360]))
+            print( " self.action_space", self.action_space)
+            self.observation_space = spaces.Box(low=np.array([-100,  -100, -4, -4]), high=np.array([100, 100, 4.0, 4.0]))
+            self.init_space = spaces.Box(low=np.array([-10, -10, 0, 0]), high=np.array([-10+10, -10+10, 2.0, 2.0]))
+        
+        # # NOT COMPLETE
+        # elif type == 'discrete': 
+        #     if action_dim == 2:
+        #         self.action_space = spaces.Discrete(63)
+        #     else:
+        #         self.action_space = spaces.Discrete(21)
+        #     self.observation_space = spaces.Box(low=np.array([0,  0, -4, -0.4]), high=np.array([100, 100, 4.0, 0.4]))
+        #     self.init_space = spaces.Box(low=np.array([0,  1.0, 0.2, -0.01]), high=np.array([30, 2.0, 0.3, 0.01]))
+
         self.MR_data = None
         self.name_experiment = None
         self.last_pos = np.zeros(2)
         self.last_action = np.zeros(self.action_dim)
         self.simulator = Simulator()
-        self.point_a = (0.0, 0.0)
-        self.point_b = (2000, 0.0)
-        self.max_x_episode = (5000, 0)
-        self.guideline = LineString([self.point_a, self.max_x_episode])
         self.start_pos = np.zeros(1)
         self.number_loop = 0  # loops in the screen -> used to plot
-        self.borders = [[0, 150], [2000, 150], [2000, -150], [0, -150]]
+        self.borders = [ [-100, 100],[-100, -100], [100, -100], [100, 100]]
         self.viewer = None
         self.test_performance = False
         self.init_test_performance = np.linspace(0, np.pi / 15, 10)
         self.counter = 0
+        self.goal_loc = np.array((30,30))
 
     def step(self, action):
         # According to the action stace a different kind of action is selected
-        if self.type == 'continuous' and self.action_dim == 2:
-            side = np.sign(self.last_pos[1])
-            angle_action = action[0]*side
-            rot_action = (action[1]+1)/10
-        elif self.type == 'continuous' and self.action_dim == 1:
-            side = np.sign(self.last_pos[1])
-            angle_action = action[0]*side
-            rot_action = 0.2
-        elif self.type == 'discrete' and self.action_dim == 2:
-            side = np.sign(self.last_pos[1])
-            angle_action = (action // 3 - 10) / 10
-            angle_action = angle_action * side
-            rot_action = 0.1 * (action % 3)
-        elif self.type == 'discrete' and self.action_dim == 1:
-            side = np.sign(self.last_pos[1])
-            angle_action = (action - 10) / 10
-            angle_action = angle_action * side
-            rot_action = 0.2
-
-        state_prime = self.simulator.step(angle_action, rot_action)
-        # convert simulator states into obervable states
-        obs = self.convert_state(state_prime)
-        # print('Observed state: ', obs)
-        dn = self.end(state_prime=state_prime, obs=obs)
+        side = np.sign(self.last_pos[1])
+        f_t = action[0]
+        alpha_t = action[1]
+        print("self.simulator. action : 0", f_t, alpha_t)
+        state_prime = self.simulator.step(f_t, alpha_t)
+        # convert simulator states into observable states
+        obs = self.convert_state(state_prime) 
+        done = self.end(state_prime=state_prime, obs=obs)
         rew = self.calculate_reward(obs=obs)
         self.last_pos = [state_prime[0], state_prime[1], state_prime[2]]
-        self.last_action = np.array([angle_action, rot_action])
+        self.last_action = np.array([f_t, alpha_t])
         if self.MR_data is not None:
             self.MR_data.new_transition(state_prime, obs, self.last_action, rew)
         info = dict()
-        return obs, rew, dn, info
+        return obs, rew, done, info
 
     def convert_state(self, state):
         """
         This method generated the features used to build the reward function
-        :param state: Global state of the ship
         """
         # ship_point = Point((state[0], state[1]))
         # side = np.sign(state[1] - self.point_a[1])
@@ -101,18 +85,23 @@ class MR_Env(Env):
 
     def calculate_reward(self, obs):
         x, y, vx, vy = obs[0], obs[1], obs[2], obs[3]
-        if self.last_pos[0] > 5000:
+        cur_loc = np.array((x, y))
+        dist2goal = np.linalg.norm( self.goal_loc - cur_loc )
+        print("dist2goal",dist2goal)
+        if dist2goal < 10   :
             print("\n Got there")
+
         if not self.observation_space.contains(obs):
             return -1000
-        else:
-            return ((-(x-30)/30) + (-(y-30)/30) )
+        else: 
+            return 100 - 10 * dist2goal
 
     def end(self, state_prime, obs):
-
-        if not self.observation_space.contains(obs) or -1 > state_prime[0] or state_prime[0] > self.max_x_episode[0] or 160 < state_prime[1] or state_prime[1]< -160:
-            if not self.observation_space.contains(obs):
-                print("\n Smashed")
+        """
+        ? This method finds out whether we are at the end of episode
+        """
+        if not self.observation_space.contains(obs):
+            print("\n Smashed on wall")
             if self.viewer is not None:
                 self.viewer.end_episode()
             if self.MR_data is not None:
@@ -127,17 +116,8 @@ class MR_Env(Env):
 
     def reset(self):
         init = list(map(float, self.init_space.sample()))
-        if self.test_performance:
-            angle = self.init_test_performance[self.counter]
-            v_lon = 1.5
-            init_states = np.array([self.start_pos[0], 30, angle, v_lon])
-            self.counter += 1
-            init[0] = 30
-            init[1] = angle
-        else:
-            init_states = np.array([self.start_pos[0], init[0], init[1], init[2]])
-        self.simulator.reset_start_pos(init_states)
-        self.last_pos = np.array([self.start_pos[0], init[0],  init[1], init[2]])
+        self.simulator.reset_start_pos(init)
+        self.last_pos = np.array(init)
         print('Reseting position')
         state = self.simulator.get_state()
         if self.MR_data is not None:
@@ -152,16 +132,14 @@ class MR_Env(Env):
         if self.viewer is None:
             self.viewer = Viewer()
             self.viewer.plot_boundary(self.borders)
-            self.viewer.plot_guidance_line(self.point_a, self.point_b)
-
-        img_x_pos = self.last_pos[0] - self.point_b[0] * (self.last_pos[0] // self.point_b[0])
-        if self.last_pos[0]//self.point_b[0] > self.number_loop:
+            self.viewer.plot_goal( self.goal_loc, 2)
+        if 100 > self.number_loop: # ??
             self.viewer.end_episode()
-            self.viewer.plot_position(img_x_pos, self.last_pos[1])
+            self.viewer.plot_position(self.last_pos[0], self.last_pos[1])
             self.viewer.restart_plot()
             self.number_loop += 1
         else:
-            self.viewer.plot_position(img_x_pos, self.last_pos[1])
+            self.viewer.plot_position(self.last_pos[0], self.last_pos[1])
 
     def close(self, ):
         self.viewer.freeze_scream()
@@ -183,7 +161,7 @@ if __name__ == '__main__':
             observation = env.reset()
             for t in range(10000):
                 env.render()
-                action = np.array([1, 2])
+                action = np.array([1, 2,33])
                 observation, reward, done, info = env.step(action)
                 if done:
                     print("Episode finished after {} timesteps".format(t + 1))

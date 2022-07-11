@@ -6,42 +6,34 @@ import tkinter
 
 class Viewer:
     def __init__(self):
-        self.l_MR = 5  # Metade do comprimento da embarcacao
+        self.l_MR = 5  # length of MR
         #first we initialize the turtle settings
         turtle.speed(0)
         turtle.mode('logo')
-        turtle.setworldcoordinates(0, -500, 2000, 500)
+        turtle.setworldcoordinates(-100,-100, 0, 0)
         turtle.setup()
-        turtle.screensize(4000, 1000, 'white')
+        turtle.screensize(5000, 5000, 'white')
         w_MR = 5  # MR width
         turtle.register_shape('MR', (
             (0, self.l_MR), (w_MR, self.l_MR ), (w_MR, -self.l_MR), (-w_MR, -self.l_MR),
             (-w_MR, self.l_MR)))
         turtle.degrees()
-
-        #
         self.MR = turtle.Turtle()
         self.MR.shape('MR')
         self.MR.fillcolor('red')
         self.MR.penup()
         self.step_count = 0
-        self.steps_for_stamp = 30
 
     def plot_position(self, x, y):
         self.MR.setpos(x, y)
         self.MR.pendown()
 
-    def plot_guidance_line(self, point_a, point_b):
-        self.MR.setpos(point_a[0], point_a[1])
-        self.MR.pendown()
-        self.MR.setpos(point_b[0], point_b[1])
-        self.MR.penup()
 
     def  plot_goal(self, point, factor):
         turtle.speed(0)
         turtle.setpos(point[0] - factor, point[1] - factor)
         turtle.pendown()
-        turtle.fillcolor('red')
+        turtle.fillcolor('green')
         turtle.begin_fill()
         turtle.setpos(point[0] - factor, point[1] + factor)
         turtle.setpos(point[0] + factor, point[1] + factor)
@@ -71,6 +63,5 @@ class Viewer:
 
 if __name__ == '__main__':
     viewer = Viewer()
-    viewer.plot_guidance_line((0, 0), (500, 0))
-    viewer.plot_position(100, 20, 20, 10)
+    viewer.plot_position(100, 20)
     viewer.freeze_scream()

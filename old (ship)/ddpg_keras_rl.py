@@ -10,11 +10,11 @@ from keras.optimizers import Adam
 from rl.agents import DDPGAgent
 from rl.memory import SequentialMemory
 from rl.random import OrnsteinUhlenbeckProcess
-from MR_env import MR_Env
+from ship_env import ShipEnv
 
 
 # Get the environment and extract the number of actions.
-env = MR_Env()
+env = ShipEnv()
 np.random.seed(666)
 env.seed(666)
 assert len(env.action_space.shape) == 1
@@ -58,7 +58,7 @@ agent.compile(Adam(lr=0.001,  clipnorm=1.), metrics=['mae'])
 # Okay, now it's time to learn something!
 mode = 'train'
 if mode == 'train':
-    hist = agent.fit(env, nb_steps=1000, visualize=False, verbose=1, nb_max_episode_steps=1000)
+    hist = agent.fit(env, nb_steps=1000, visualize=False, verbose=2, nb_max_episode_steps=1000)
     filename = '600kit_rn4_maior2_mem20k_target01_theta3_batch32_adam2'
     # we save the history of learning, it can further be used to plot reward evolution
     with open('_experiments/history_ddpg__redetorcs'+filename+'.pickle', 'wb') as handle:

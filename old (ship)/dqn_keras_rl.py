@@ -20,7 +20,8 @@ env.seed(551)
 
 
 nb_actions = env.action_space.n
-
+print("######################################################")
+print ("env.observation_space.shape :",env.observation_space.shape, "# of actions = ",nb_actions )
 # Next, we build a very simple model.
 model = Sequential()
 model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
@@ -48,7 +49,7 @@ mode = 'train'
 if mode == 'train':
     print("training started....")
     filename = '400kit_rn4_maior2_mem20k_20acleme_target1000_epsgr1'
-    hist = dqn.fit(env, nb_steps=30000, visualize=False, verbose=2)
+    hist = dqn.fit(env, nb_steps=3000, visualize=False, verbose=2)
     with open('D:/Projects/MMRs/MR_RL/_experiments/history_dqn_test_'+ filename + '.pickle', 'wb') as handle:
         pickle.dump(hist.history, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
