@@ -10,9 +10,9 @@ class Viewer:
         #first we initialize the turtle settings
         turtle.speed(0)
         turtle.mode('logo')
-        turtle.setworldcoordinates(-100,-100, 0, 0)
+        turtle.setworldcoordinates(-1000,-1000, 0, 0)
         turtle.setup()
-        turtle.screensize(5000, 5000, 'white')
+        turtle.screensize(6000, 6000, 'white')
         w_MR = 5  # MR width
         turtle.register_shape('MR', (
             (0, self.l_MR), (w_MR, self.l_MR ), (w_MR, -self.l_MR), (-w_MR, -self.l_MR),

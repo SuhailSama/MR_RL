@@ -19,22 +19,12 @@ class MR_Env(Env):
     def __init__(self, type='continuous', action_dim = 2):
         self.type = type
         self.action_dim = action_dim
+        self.dist2goal = 1000
         assert type == 'continuous' or type == 'discrete', 'type must be continuous or discrete'
         assert action_dim > 0 and action_dim <=2, 'action_dim must be 1 or 2'
-        if type == 'continuous':
-            self.action_space = spaces.Box(low=np.array([2, 20]), high=np.array([5, 360]))
-            print( " self.action_space", self.action_space)
-            self.observation_space = spaces.Box(low=np.array([-100,  -100, -4, -4]), high=np.array([100, 100, 4.0, 4.0]))
-            self.init_space = spaces.Box(low=np.array([-10, -10, 0, 0]), high=np.array([-10+10, -10+10, 2.0, 2.0]))
-        
-        # # NOT COMPLETE
-        # elif type == 'discrete': 
-        #     if action_dim == 2:
-        #         self.action_space = spaces.Discrete(63)
-        #     else:
-        #         self.action_space = spaces.Discrete(21)
-        #     self.observation_space = spaces.Box(low=np.array([0,  0, -4, -0.4]), high=np.array([100, 100, 4.0, 0.4]))
-        #     self.init_space = spaces.Box(low=np.array([0,  1.0, 0.2, -0.01]), high=np.array([30, 2.0, 0.3, 0.01]))
+        self.action_space = spaces.Box(low=np.array([-2, -180]), high=np.array([2, 180]))
+        self.observation_space = spaces.Box(low=np.array([0,  0]), high=np.array([500, 500]))
+        self.init_space = spaces.Box(low=np.array([100, 100]), high=np.array([100+10, 100+10]))
 
         self.MR_data = None
         self.name_experiment = None
@@ -43,29 +33,35 @@ class MR_Env(Env):
         self.simulator = Simulator()
         self.start_pos = np.zeros(1)
         self.number_loop = 0  # loops in the screen -> used to plot
-        self.borders = [ [-100, 100],[-100, -100], [100, -100], [100, 100]]
+        self.borders = [ [0, 450],[0, 0], [450, 0], [450, 450]]
         self.viewer = None
         self.test_performance = False
         self.init_test_performance = np.linspace(0, np.pi / 15, 10)
         self.counter = 0
-        self.goal_loc = np.array((30,30))
+        self.goal_loc = np.array((0,0))
+        self.min_dist2goal = 50
+
 
     def step(self, action):
         # According to the action stace a different kind of action is selected
-        side = np.sign(self.last_pos[1])
-        f_t = action[0]
-        alpha_t = action[1]
-        print("self.simulator. action : 0", f_t, alpha_t)
+        side1 = np.sign(self.last_pos[0])
+        side2 = np.sign(self.last_pos[1])
+        f_t =  action[0]*2#*side1
+        alpha_t = action[1]*180#*side2
+        
         state_prime = self.simulator.step(f_t, alpha_t)
         # convert simulator states into observable states
         obs = self.convert_state(state_prime) 
         done = self.end(state_prime=state_prime, obs=obs)
         rew = self.calculate_reward(obs=obs)
-        self.last_pos = [state_prime[0], state_prime[1], state_prime[2]]
-        self.last_action = np.array([f_t, alpha_t])
+
+        self.last_pos = [state_prime[0], state_prime[1]]
+        self.last_action = np.array([f_t ,alpha_t])
         if self.MR_data is not None:
             self.MR_data.new_transition(state_prime, obs, self.last_action, rew)
         info = dict()
+        # print ("##############################################")
+        print ("action : ",self.last_action, "obs : ",obs,"rew : ",rew )
         return obs, rew, done, info
 
     def convert_state(self, state):
@@ -80,33 +76,33 @@ class MR_Env(Env):
         # vy = side*state[4]  # m/s
         # thetadot = side * state[5]  # graus/min
         # obs = np.array([d, theta, vx, vy, thetadot])
-        obs = state
-        return obs
+        return state
 
     def calculate_reward(self, obs):
-        x, y, vx, vy = obs[0], obs[1], obs[2], obs[3]
+        x, y = obs[0], obs[1]
         cur_loc = np.array((x, y))
-        dist2goal = np.linalg.norm( self.goal_loc - cur_loc )
-        print("dist2goal",dist2goal)
-        if dist2goal < 10   :
-            print("\n Got there")
-
-        if not self.observation_space.contains(obs):
-            return -1000
+        self.dist2goal = np.linalg.norm( self.goal_loc - cur_loc )
+        if self.dist2goal < self.min_dist2goal   :
+            # print("############ Got there ########")
+            return 1000
+        elif not self.observation_space.contains(obs):
+            return - 1000
         else: 
-            return 100 - 10 * dist2goal
+            return - self.dist2goal
 
     def end(self, state_prime, obs):
         """
         ? This method finds out whether we are at the end of episode
         """
         if not self.observation_space.contains(obs):
-            print("\n Smashed on wall")
+            # print("\n Smashed on wall")
             if self.viewer is not None:
                 self.viewer.end_episode()
             if self.MR_data is not None:
                 if self.MR_data.iterations > 0:
                     self.MR_data.save_experiment(self.name_experiment)
+            return True
+        elif self.dist2goal < self.min_dist2goal   :
             return True
         else:
             return False
@@ -118,7 +114,7 @@ class MR_Env(Env):
         init = list(map(float, self.init_space.sample()))
         self.simulator.reset_start_pos(init)
         self.last_pos = np.array(init)
-        print('Reseting position')
+        # print('Reseting position')
         state = self.simulator.get_state()
         if self.MR_data is not None:
             if self.MR_data.iterations > 0:
@@ -132,7 +128,7 @@ class MR_Env(Env):
         if self.viewer is None:
             self.viewer = Viewer()
             self.viewer.plot_boundary(self.borders)
-            self.viewer.plot_goal( self.goal_loc, 2)
+            self.viewer.plot_goal( self.goal_loc, 1)
         if 100 > self.number_loop: # ??
             self.viewer.end_episode()
             self.viewer.plot_position(self.last_pos[0], self.last_pos[1])
@@ -159,10 +155,12 @@ if __name__ == '__main__':
         shipExp = MRExperiment()
         for i_episode in range(10):
             observation = env.reset()
-            for t in range(10000):
+            for t in range(2):
                 env.render()
-                action = np.array([1, 2,33])
+                action = np.array([10, 90])
                 observation, reward, done, info = env.step(action)
+                print ("observation, reward, done, info \n")
+                print (observation, reward, done, info)
                 if done:
                     print("Episode finished after {} timesteps".format(t + 1))
                     break
