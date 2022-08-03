@@ -6,14 +6,14 @@ import tkinter
 
 class Viewer:
     def __init__(self):
-        self.l_MR = 5  # length of MR
+        self.l_MR = 2  # length of MR
         #first we initialize the turtle settings
         turtle.speed(0)
         turtle.mode('logo')
-        turtle.setworldcoordinates(-1000,-1000, 0, 0)
+        turtle.setworldcoordinates(-10,-10, 1000,1000)
         turtle.setup()
-        turtle.screensize(6000, 6000, 'white')
-        w_MR = 5  # MR width
+        turtle.screensize(100, 100, 'white')
+        w_MR = 2  # MR width
         turtle.register_shape('MR', (
             (0, self.l_MR), (w_MR, self.l_MR ), (w_MR, -self.l_MR), (-w_MR, -self.l_MR),
             (-w_MR, self.l_MR)))

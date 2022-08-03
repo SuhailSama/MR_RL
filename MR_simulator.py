@@ -12,7 +12,7 @@ class Simulator:
         self.number_iterations = 10  # 100 iterations for each step
         self.integrator = None # 
         ##MR Constants
-        self.a = 1.2
+        self.a = 2
 
     def reset_start_pos(self, state_vector):
         x0, y0 = state_vector[0], state_vector[1]
@@ -39,12 +39,17 @@ class Simulator:
         x2 = states[1] #v
         # print("\n States ",states)
         f_t = self.current_action[0]
-        alpha_t = self.current_action[1]*np.pi/180    
+        alpha_t = self.current_action[1]    
         # Derivative function
 
         # simple model
         dx1 = self.a * f_t  *np.cos(alpha_t)
         dx2 = self.a * f_t  *np.sin(alpha_t)
+
+        # print("\n Actions taken:" , self.current_action)
+        # print("\n np.cos(alpha_t) ",np.cos(alpha_t),"np.sin(alpha_t) ",np.sin(alpha_t))
+        # print("\n dx1: ", dx1 , "dx2: ", dx2)
+
 
         fx = np.array([dx1, dx2])
         return fx
