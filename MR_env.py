@@ -23,10 +23,10 @@ class MR_Env(Env):
         self.action_dim = action_dim
         # assert type == 'continuous' or type == 'discrete', 'type must be continuous or discrete'
         # assert action_dim > 0 and action_dim <=2, 'action_dim must be 1 or 2'
-        self.action_space = spaces.Box(low=np.array([-100, -np.pi]), high=np.array([100, np.pi]))
-        self.observation_space = spaces.Box(low=np.array([0,  0,0,  0, 0]), high=np.array([490, 490, 490, 490,8000]))
-        self.init_space = spaces.Box(low=np.array([250, 250]), high=np.array([260, 260]))
-        self.init_goal_space = spaces.Box(low=np.array([400, 400]), high=np.array([405, 405]))
+        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([30, np.pi*2]))
+        self.observation_space = spaces.Box(low=np.array([-500,  -500,-500,  -500, 0]), high=np.array([500, 500, 500, 500,8000])) # x,y,x_target,y_target,distance
+        self.init_space = spaces.Box(low=np.array([10, -10]), high=np.array([20, -20]))
+        self.init_goal_space = spaces.Box(low=np.array([-410, 110]), high=np.array([-420, 120]))
         self.MR_data = None
         self.name_experiment = None
         self.last_pos = np.zeros(2)
@@ -34,20 +34,22 @@ class MR_Env(Env):
         self.init_goal = np.zeros(2)
         self.simulator = Simulator()
         self.number_loop = 0  # loops in the screen -> used to plot
-        self.borders = [ [10, 490],[10, 10], [490,10], [490, 490]]
+        self.borders = [ [-510, 510],[-510, -510], [510,-510], [510, 510]]
         self.viewer = None
         self.test_performance = False
         # self.init_test_performance = np.linspace(0, np.pi / 15, 10)
         self.counter = 0
 
-        self.max_timesteps = 50
-        self.min_dist2goal = 100
+        self.max_timesteps = 300
+        self.min_dist2goal = 40
 
 
     def step(self, action):
         # According to the action stace a different kind of action is selected
         self.counter += 1
-        action = action#*self.action_space.high
+        # print ("##############################################")
+        # print(action)
+        action = action*self.action_space.high
         f_t =  action[0]
         alpha_t = action[1]
         state_prime = self.simulator.step(f_t, alpha_t)
@@ -90,12 +92,11 @@ class MR_Env(Env):
         x, y, d = obs[0], obs[1], obs[4]
         if d < self.min_dist2goal   :
             print("\n ############ Got there ########", d)
-            return 5
+            return 10
         elif not self.observation_space.contains(obs) or self.counter > self.max_timesteps:
-            # print("\n ############ hit wall ########", np.min([- 100.0,-d]))
-            return -5
+            return -100
         else:
-            return 0 # self.min_dist2goal  - d
+            return self.min_dist2goal/d
 
     def end(self, state_prime, obs):
         """
@@ -122,7 +123,7 @@ class MR_Env(Env):
         self.init_goal = self.init_goal_space.sample()
         while np.linalg.norm( self.init_goal - init ) < 50 :
             self.init_goal = self.init_space.sample()
-        return np.array([400,400]) # self.init_goal
+        return self.init_goal
 
     def reset(self):
         init = self.init_space.sample()
@@ -138,7 +139,7 @@ class MR_Env(Env):
         if self.MR_data is not None:
             if self.MR_data.iterations > 0:
                 self.MR_data.save_experiment(self.name_experiment)
-            self.MR_data.new_iter(state, self.convert_state(state), np.zeros(len(self.last_action)), np.array([0]))
+            self.MR_data.new_iter(state, self.convert_state(state,self.init_goal), np.zeros(len(self.last_action)), np.array([0]))
         if self.viewer is not None:
             self.viewer.end_episode()
         return self.convert_state(state,self.init_goal)
@@ -154,7 +155,7 @@ class MR_Env(Env):
             self.viewer.restart_plot()
             self.number_loop += 1
         else:
-            # self.viewer.plot_goal( self.init_goal, 2)
+            self.viewer.plot_goal( self.init_goal, 2)
             self.viewer.plot_position(self.last_pos[0], self.last_pos[1])
             self.viewer.end_episode()
             self.viewer.restart_plot()

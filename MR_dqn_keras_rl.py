@@ -18,7 +18,6 @@ env = MR_Env(type='continuous', action_dim=2)
 np.random.seed(551)
 env.seed(551)
 
-
 nb_actions = env.action_space.shape[0]
 # Next, we build a very simple model.
 model = Sequential()
@@ -47,7 +46,7 @@ mode = 'train'
 if mode == 'train':
     print("training started....")
     filename = '400kit_rn4_maior2_mem20k_20acleme_target1000_epsgr1'
-    hist = dqn.fit(env, nb_steps=300000, visualize=True, verbose=1)
+    hist = dqn.fit(env, nb_steps=30000, visualize=True, verbose=1)
     with open('D:/Projects/MMRs/MR_RL/_experiments/history_dqn_test_'+ filename + '.pickle', 'wb') as handle:
         pickle.dump(hist.history, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
