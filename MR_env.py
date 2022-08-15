@@ -23,10 +23,10 @@ class MR_Env(Env):
         self.action_dim = action_dim
         # assert type == 'continuous' or type == 'discrete', 'type must be continuous or discrete'
         # assert action_dim > 0 and action_dim <=2, 'action_dim must be 1 or 2'
-        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([30, np.pi*2]))
-        self.observation_space = spaces.Box(low=np.array([-500,  -500,-500,  -500, 0]), high=np.array([500, 500, 500, 500,8000])) # x,y,x_target,y_target,distance
-        self.init_space = spaces.Box(low=np.array([10, -10]), high=np.array([20, -20]))
-        self.init_goal_space = spaces.Box(low=np.array([-410, 110]), high=np.array([-420, 120]))
+        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([20, np.pi*2]))
+        self.observation_space = spaces.Box(low=np.array([-500,  -500,-500,  -500, 00]), high=np.array([500, 500, 500, 500,8000])) # x,y,x_target,y_target,distance
+        self.init_space = spaces.Box(low=np.array([100, 100]), high=np.array([120, 120]))
+        self.init_goal_space = spaces.Box(low=np.array([-31, -31]), high=np.array([-32, -32]))
         self.MR_data = None
         self.name_experiment = None
         self.last_pos = np.zeros(2)
@@ -40,15 +40,13 @@ class MR_Env(Env):
         # self.init_test_performance = np.linspace(0, np.pi / 15, 10)
         self.counter = 0
 
-        self.max_timesteps = 300
-        self.min_dist2goal = 40
-
+        self.max_timesteps = 50
+        self.min_dist2goal = 30
 
     def step(self, action):
         # According to the action stace a different kind of action is selected
-        self.counter += 1
-        # print ("##############################################")
         # print(action)
+        self.counter += 1
         action = action*self.action_space.high
         f_t =  action[0]
         alpha_t = action[1]
@@ -65,22 +63,12 @@ class MR_Env(Env):
         if self.MR_data is not None:
             self.MR_data.new_transition(state_prime, obs, self.last_action, rew)
         info = dict()
-        # print ("##############################################")
-        # print ("\n action : ",self.last_action, "obs : ",obs,"rew : ",rew )
         return obs, rew, done, info
 
     def convert_state(self, state,goal_loc):
         """
         This method generated the features used to build the reward function
         """
-        # ship_point = Point((state[0], state[1]))
-        # side = np.sign(state[1] - self.point_a[1])
-        # d = ship_point.distance(self.guideline)  # meters
-        # theta = side*state[2]  # radians
-        # vx = state[3]  # m/s
-        # vy = side*state[4]  # m/s
-        # thetadot = side * state[5]  # graus/min
-        # obs = np.array([d, theta, vx, vy, thetadot])
         x,y,goal_x,goal_y  = state[0], state[1], goal_loc[0], goal_loc[1]
         cur_loc = np.array((x,y))
         goal_loc = np.array((goal_x,goal_y))
@@ -91,12 +79,12 @@ class MR_Env(Env):
     def calculate_reward(self, obs):
         x, y, d = obs[0], obs[1], obs[4]
         if d < self.min_dist2goal   :
-            print("\n ############ Got there ########", d)
-            return 10
+            print("\n ############ Got there ########")
+            return 100
         elif not self.observation_space.contains(obs) or self.counter > self.max_timesteps:
             return -100
         else:
-            return self.min_dist2goal/d
+            return -0.1# self.min_dist2goal/d
 
     def end(self, state_prime, obs):
         """
@@ -120,9 +108,10 @@ class MR_Env(Env):
         self.init_space = spaces.Box(low=np.array(low), high=np.array(high))
 
     def set_goal(self,init):
-        self.init_goal = self.init_goal_space.sample()
-        while np.linalg.norm( self.init_goal - init ) < 50 :
-            self.init_goal = self.init_space.sample()
+        # self.init_goal = self.init_goal_space.sample()
+        # while np.linalg.norm( self.init_goal - init ) < self.min_dist2goal :
+        #     self.init_goal = self.init_space.sample()
+        #     # print("uh")
         return self.init_goal
 
     def reset(self):
@@ -149,7 +138,7 @@ class MR_Env(Env):
             self.viewer = Viewer()
             self.viewer.plot_boundary(self.borders)
             
-        if 10 > self.number_loop: # ??
+        if 1 > self.number_loop: # ??
             self.viewer.end_episode()
             self.viewer.plot_position(self.last_pos[0], self.last_pos[1])
             self.viewer.restart_plot()

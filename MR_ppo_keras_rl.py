@@ -1,254 +1,108 @@
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
-import gym
-import scipy.signal
-import time
-
 from MR_env import MR_Env
 
+import gym
+import gym
+import jax
+import jax.numpy as jnp
+import coax
+import haiku as hk
+from numpy import prod
+import optax
 
 
-def discounted_cumulative_sums(x, discount):
-    # Discounted cumulative sums of vectors for computing rewards-to-go and advantage estimates
-    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
+# the name of this script
+name = 'ppo'
+
+# the Pendulum MDP
+env = MR_Env # gym.make('Pendulum-v0')
+env = coax.wrappers.TrainMonitor(env, name=name, tensorboard_dir=f"./data/tensorboard/{name}")
 
 
-class Buffer:
-    # Buffer for storing trajectories
-    def __init__(self, observation_dimensions, size, gamma=0.99, lam=0.95):
-        # Buffer initialization
-        self.observation_buffer = np.zeros(
-            (size, observation_dimensions), dtype=np.float32
-        )
-        self.action_buffer = np.zeros(size, dtype=np.int32)
-        self.advantage_buffer = np.zeros(size, dtype=np.float32)
-        self.reward_buffer = np.zeros(size, dtype=np.float32)
-        self.return_buffer = np.zeros(size, dtype=np.float32)
-        self.value_buffer = np.zeros(size, dtype=np.float32)
-        self.logprobability_buffer = np.zeros(size, dtype=np.float32)
-        self.gamma, self.lam = gamma, lam
-        self.pointer, self.trajectory_start_index = 0, 0
-
-    def store(self, observation, action, reward, value, logprobability):
-        # Append one step of agent-environment interaction
-        self.observation_buffer[self.pointer] = observation
-        self.action_buffer[self.pointer] = action
-        self.reward_buffer[self.pointer] = reward
-        self.value_buffer[self.pointer] = value
-        self.logprobability_buffer[self.pointer] = logprobability
-        self.pointer += 1
-
-    def finish_trajectory(self, last_value=0):
-        # Finish the trajectory by computing advantage estimates and rewards-to-go
-        path_slice = slice(self.trajectory_start_index, self.pointer)
-        rewards = np.append(self.reward_buffer[path_slice], last_value)
-        values = np.append(self.value_buffer[path_slice], last_value)
-
-        deltas = rewards[:-1] + self.gamma * values[1:] - values[:-1]
-
-        self.advantage_buffer[path_slice] = discounted_cumulative_sums(
-            deltas, self.gamma * self.lam
-        )
-        self.return_buffer[path_slice] = discounted_cumulative_sums(
-            rewards, self.gamma
-        )[:-1]
-
-        self.trajectory_start_index = self.pointer
-
-    def get(self):
-        # Get all data of the buffer and normalize the advantages
-        self.pointer, self.trajectory_start_index = 0, 0
-        advantage_mean, advantage_std = (
-            np.mean(self.advantage_buffer),
-            np.std(self.advantage_buffer),
-        )
-        self.advantage_buffer = (self.advantage_buffer - advantage_mean) / advantage_std
-        return (
-            self.observation_buffer,
-            self.action_buffer,
-            self.advantage_buffer,
-            self.return_buffer,
-            self.logprobability_buffer,
-        )
+def func_pi(S, is_training):
+    shared = hk.Sequential((
+        hk.Linear(8), jax.nn.relu,
+        hk.Linear(8), jax.nn.relu,
+    ))
+    mu = hk.Sequential((
+        shared,
+        hk.Linear(8), jax.nn.relu,
+        hk.Linear(prod(env.action_space.shape), w_init=jnp.zeros),
+        hk.Reshape(env.action_space.shape),
+    ))
+    logvar = hk.Sequential((
+        shared,
+        hk.Linear(8), jax.nn.relu,
+        hk.Linear(prod(env.action_space.shape), w_init=jnp.zeros),
+        hk.Reshape(env.action_space.shape),
+    ))
+    return {'mu': mu(S), 'logvar': logvar(S)}
 
 
-def mlp(x, sizes, activation=tf.tanh, output_activation=None):
-    # Build a feedforward neural network
-    for size in sizes[:-1]:
-        x = layers.Dense(units=size, activation=activation)(x)
-    return layers.Dense(units=sizes[-1], activation=output_activation)(x)
+def func_v(S, is_training):
+    seq = hk.Sequential((
+        hk.Linear(8), jax.nn.relu,
+        hk.Linear(8), jax.nn.relu,
+        hk.Linear(8), jax.nn.relu,
+        hk.Linear(1, w_init=jnp.zeros), jnp.ravel
+    ))
+    return seq(S)
 
 
-def logprobabilities(logits, a):
-    # Compute the log-probabilities of taking actions a by using the logits (i.e. the output of the actor)
-    logprobabilities_all = tf.nn.log_softmax(logits)
-    logprobability = tf.reduce_sum(
-        tf.one_hot(a, num_actions) * logprobabilities_all, axis=1
-    )
-    return logprobability
-
-# Sample action from actor
-@tf.function
-def sample_action(observation):
-    logits = actor(observation)
-    action = tf.squeeze(tf.random.categorical(logits, 1), axis=1)
-    return logits, action
-    
-# Train the policy by maxizing the PPO-Clip objective
-@tf.function
-def train_policy(
-    observation_buffer, action_buffer, logprobability_buffer, advantage_buffer
-):
-
-    with tf.GradientTape() as tape:  # Record operations for automatic differentiation.
-        ratio = tf.exp(
-            logprobabilities(actor(observation_buffer), action_buffer)
-            - logprobability_buffer
-        )
-        min_advantage = tf.where(
-            advantage_buffer > 0,
-            (1 + clip_ratio) * advantage_buffer,
-            (1 - clip_ratio) * advantage_buffer,
-        )
-
-        policy_loss = -tf.reduce_mean(
-            tf.minimum(ratio * advantage_buffer, min_advantage)
-        )
-    policy_grads = tape.gradient(policy_loss, actor.trainable_variables)
-    policy_optimizer.apply_gradients(zip(policy_grads, actor.trainable_variables))
-
-    kl = tf.reduce_mean(
-        logprobability_buffer
-        - logprobabilities(actor(observation_buffer), action_buffer)
-    )
-    kl = tf.reduce_sum(kl)
-    return kl
+# define function approximators
+pi = coax.Policy(func_pi, env)
+v = coax.V(func_v, env)
 
 
-# Train the value function by regression on mean-squared error
-@tf.function
-def train_value_function(observation_buffer, return_buffer):
-    with tf.GradientTape() as tape:  # Record operations for automatic differentiation.
-        value_loss = tf.reduce_mean((return_buffer - critic(observation_buffer)) ** 2)
-    value_grads = tape.gradient(value_loss, critic.trainable_variables)
-    value_optimizer.apply_gradients(zip(value_grads, critic.trainable_variables))
+# target network
+pi_targ = pi.copy()
 
 
+# experience tracer
+tracer = coax.reward_tracing.NStep(n=5, gamma=0.9)
+buffer = coax.experience_replay.SimpleReplayBuffer(capacity=512)
 
 
-# Hyperparameters of the PPO algorithm
-steps_per_epoch = 4000
-epochs = 30
-gamma = 0.99
-clip_ratio = 0.2
-policy_learning_rate = 3e-4
-value_function_learning_rate = 1e-3
-train_policy_iterations = 80
-train_value_iterations = 80
-lam = 0.97
-target_kl = 0.01
-hidden_sizes = (64, 64)
-
-# True if you want to render the environment
-render = True
+# policy regularizer (avoid premature exploitation)
+policy_reg = coax.regularizers.EntropyRegularizer(pi, beta=0.01)
 
 
-# Initialize the environment and get the dimensionality of the
-# observation space and the number of possible actions
-env = MR_Env()
-observation_dimensions = env.observation_space.shape[0]
-num_actions = env.action_space.shape[0]
-
-# Initialize the buffer
-buffer = Buffer(observation_dimensions, steps_per_epoch)
-
-# Initialize the actor and the critic as keras models
-observation_input = keras.Input(shape=(observation_dimensions,), dtype=tf.float32)
-actions = tf.squeeze(
-	mlp(observation_input, list(hidden_sizes) + [num_actions], tf.tanh, None)
-)
-actor = keras.Model(inputs=observation_input, outputs=actions)
-value = tf.squeeze(
-    mlp(observation_input, list(hidden_sizes) + [1], tf.tanh, None), axis=1
-)
-critic = keras.Model(inputs=observation_input, outputs=value)
-
-# Initialize the policy and the value function optimizers
-policy_optimizer = keras.optimizers.Adam(learning_rate=policy_learning_rate)
-value_optimizer = keras.optimizers.Adam(learning_rate=value_function_learning_rate)
-
-# Initialize the observation, episode return and episode length
-observation, episode_return, episode_length = env.reset(), 0, 0
+# updaters
+simpletd = coax.td_learning.SimpleTD(v, optimizer=optax.adam(1e-3))
+ppo_clip = coax.policy_objectives.PPOClip(pi, regularizer=policy_reg, optimizer=optax.adam(1e-4))
 
 
+# train
+while env.T < 1000000:
+    s = env.reset()
 
-# Iterate over the number of epochs
-for epoch in range(epochs):
-    # Initialize the sum of the returns, lengths and number of episodes for each epoch
-    sum_return = 0
-    sum_length = 0
-    num_episodes = 0
+    for t in range(env.spec.max_episode_steps):
+        a, logp = pi_targ(s, return_logp=True)
+        s_next, r, done, info = env.step(a)
 
-    # Iterate over the steps of each epoch
-    for t in range(steps_per_epoch):
-        if render:
-            env.render()
+        # trace rewards
+        tracer.add(s, a, r, done, logp)
+        while tracer:
+            buffer.add(tracer.pop())
 
-        # Get the logits, action, and take one step in the environment
-        observation = observation.reshape(1, -1)
-        action = actor(observation)
-        print(np.array(action[1]))
-        print("######################")
-        observation_new, reward, done, _ = env.step(np.array(action,dtype=float))
-        episode_return += reward
-        episode_length += 1
+        # learn
+        if len(buffer) >= buffer.capacity:
+            for _ in range(int(4 * buffer.capacity / 32)):  # 4 passes per round
+                transition_batch = buffer.sample(batch_size=32)
+                metrics_v, td_error = simpletd.update(transition_batch, return_td_error=True)
+                metrics_pi = ppo_clip.update(transition_batch, td_error)
+                env.record_metrics(metrics_v)
+                env.record_metrics(metrics_pi)
 
-        # Get the value and log-probability of the action
-        value_t = critic(observation)
-        logprobability_t = logprobabilities(logits, action)
+            buffer.clear()
+            pi_targ.soft_update(pi, tau=0.1)
 
-        # Store obs, act, rew, v_t, logp_pi_t
-        buffer.store(observation, action, reward, value_t, logprobability_t)
-
-        # Update the observation
-        observation = observation_new
-
-        # Finish trajectory if reached to a terminal state
-        terminal = done
-        if terminal or (t == steps_per_epoch - 1):
-            last_value = 0 if done else critic(observation.reshape(1, -1))
-            buffer.finish_trajectory(last_value)
-            sum_return += episode_return
-            sum_length += episode_length
-            num_episodes += 1
-            observation, episode_return, episode_length = env.reset(), 0, 0
-
-    # Get values from the buffer
-    (
-        observation_buffer,
-        action_buffer,
-        advantage_buffer,
-        return_buffer,
-        logprobability_buffer,
-    ) = buffer.get()
-
-    # Update the policy and implement early stopping using KL divergence
-    for _ in range(train_policy_iterations):
-        kl = train_policy(
-            observation_buffer, action_buffer, logprobability_buffer, advantage_buffer
-        )
-        if kl > 1.5 * target_kl:
-            # Early Stopping
+        if done:
             break
 
-    # Update the value function
-    for _ in range(train_value_iterations):
-        train_value_function(observation_buffer, return_buffer)
+        s = s_next
 
-    # Print mean return and length for each epoch
-    print(
-        f" Epoch: {epoch + 1}. Mean Return: {sum_return / num_episodes}. Mean Length: {sum_length / num_episodes}"
-    )
-
+    # generate an animated GIF to see what's going on
+    if env.period(name='generate_gif', T_period=10000) and env.T > 5000:
+        T = env.T - env.T % 10000  # round to 10000s
+        coax.utils.generate_gif(
+            env=env, policy=pi, filepath=f"./data/gifs/{name}/T{T:08d}.gif")
