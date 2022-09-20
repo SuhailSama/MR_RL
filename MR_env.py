@@ -47,7 +47,7 @@ class MR_Env(Env):
         # According to the action stace a different kind of action is selected
         # print(action)
         self.counter += 1
-        action = action*self.action_space.high
+        action = action
         f_t =  action[0]
         alpha_t = action[1]
         state_prime = self.simulator.step(f_t, alpha_t)
@@ -114,8 +114,12 @@ class MR_Env(Env):
         #     # print("uh")
         return self.init_goal
 
-    def reset(self):
-        init = self.init_space.sample()
+    def reset(self, init = None):
+        if init is None: 
+            init = self.init_space.sample()
+            
+        print("starting positions")
+        print(init.shape)
         self.set_goal(init)
         self.simulator.reset_start_pos(init)
         self.goal_loc = self.init_space.sample()
@@ -162,18 +166,7 @@ class MR_Env(Env):
         self.test_performance = True
 
 
-
-
-
-if __name__ == '__main__':
-
-    """
-    Ensure you have imagemagick installed with 
-    sudo apt-get install imagemagick
-    Open file in CLI with:
-    xgd-open <filelname>
-    """
-    def save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
+def save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
 
         #Mess with this to change frame size
         plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
@@ -187,24 +180,39 @@ if __name__ == '__main__':
         anim = animation.FuncAnimation(plt.gcf(), animate, frames = len(frames), interval=50)
         anim.save(path + filename, writer='imagemagick', fps=60)
 
+    
+
+
+if __name__ == '__main__':
     frames = []
-    mode = 'normal'
+    mode = 'normal' # mode: 'normal', 'joystick'
+
     if mode == 'normal':
         env = MR_Env()
-        shipExp = MRExperiment()
+        episode_action_obs = []
         for i_episode in range(5):
             observation = env.reset()
             for t in range(50):
                 frames.append(env.render())
                 # env.render()
-                action = np.array([-2*t, np.pi*t/4])
+                action = np.array([20, 2*np.pi - 0.0872665 ]) # -2*np.pi/(i_episode+1)
                 observation, reward, done, info = env.step(action)
+                
                 # print ("observation, reward, done, info \n")
-                # print (observation, reward, done, info)
+                print (observation)
+                print ("Actions: rolling_frequesncy: %2.2f, alpha : %5.2f" % (action[0],action[1]))
                 if done:
                     print("Episode finished after {} timesteps".format(t + 1))
                     break
         env.close()
         save_frames_as_gif(frames)
         print("######### DONE ########")
+
+    elif mode == 'joystick':
+
+        print('joystick not implemented')
+
+    else:
+        print("mode should be  'normal' or 'joystick'") 
+
 
