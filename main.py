@@ -55,6 +55,14 @@ def run_sim(actions,init_pos=None):
     
     return X,Y,alpha,time,freq
 
+
+def run_exp(actions):
+    # TODO: Max will update
+    pass 
+    
+    
+    return X,Y,alpha,time,freq
+
 def plot_traj(X1,Y1,X2=[],Y2=[], legends=["experiment"]):
     fig, ax = plt.subplots()
 
@@ -148,7 +156,7 @@ if case == "data":
     
     #this function plots what the GP has learned for each axis
     gp.visualize()
-elif case == " ":
+elif case == "sim":
     time_steps =600
     actions = np.array([[1, np.pi*(2*(t/time_steps)-1)*(-1)**(t//600)] 
                         for t in range(1,time_steps)]) # [T,action_dim]
@@ -162,8 +170,18 @@ elif case == " ":
     gp_sim.visualize()
     
 elif case == "exp" :
-    print("Importing experimental data not implemeted")
-    sys.exit()
+    # TODO: Max will update the run_exp function
+    time_steps =600
+    actions = np.array([[1, np.pi*(2*(t/time_steps)-1)*(-1)**(t//600)] 
+                        for t in range(1,time_steps)]) # [T,action_dim]
+    px_sim,py_sim,alpha_sim,time_sim,freq_sim = run_exp(actions)
+    plot_traj(px_sim,py_sim,legends =["experiment"])
+    # create a LearningModule object
+    gp_sim = GP.LearningModule()
+    #train by passing in raw position + control signals as well as the time stamp
+    a0_sim = gp_sim.learn(px_sim, py_sim, alpha_sim,freq_sim[0], time_sim)
+    print("Estimated a0 value is " + str(a0_sim))
+    gp_sim.visualize()
 else: 
     px,py,alpha,time,freq = readfile(r'D:/Projects/MMRs/Learning_Module/closedloopdata-10-1_withTIME/closed2.pickle')
     todel = np.argwhere(alpha >= 500)
@@ -226,8 +244,18 @@ elif case == "sim":
     freq_sim = actions[0,0]
     test_gp(gp_sim,px_sim,py_sim,a0_sim,alpha_sim,freq_sim[0],time_sim,fig_title[0])
 elif case == "exp" :
-    print("experiment not implemeted")
-    sys.exit()
+    time_steps = 40
+    time_sim
+    actions = np.array([[2, 0.1*np.pi*t**2] for t in range(1,time_steps)]) # [T,action_dim]
+    px_sim,py_sim,alpha_sim,time_sim,freq_sim = run_exp(actions)
+    plot_traj(px_sim,py_sim,
+              legends =["simulation"])
+    
+    time = np.arange(1,time_steps) #start at t=0 for readability of the final graph
+    fig_title = ["simulation"]
+    alpha_sim = actions[:,1]
+    freq_sim = actions[0,0]
+    test_gp(gp_sim,px_sim,py_sim,a0_sim,alpha_sim,freq_sim[0],time_sim,fig_title[0])
     
 else: 
     px,py,alpha,time,freq = readfile(r'D:/Projects/MMRs/Learning_Module/closedloopdata-10-1_withTIME/closed.pickle')
