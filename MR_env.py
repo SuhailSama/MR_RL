@@ -42,29 +42,30 @@ class MR_Env(Env):
 
         self.max_timesteps = 50
         self.min_dist2goal = 30
+        self.state_prime = None
 
     def step(self, action):
         # According to the action stace a different kind of action is selected
         # print(action)
         self.counter += 1
-        action = action
         f_t =  action[0]
         alpha_t = action[1]
-        state_prime = self.simulator.step(f_t, alpha_t)
-
+        state = self.simulator.step(f_t, alpha_t)
+        self.state_prime = self.simulator.state_prime
         # convert simulator states into observable states
-        obs = self.convert_state(state_prime, self.init_goal) 
-        done = self.end(state_prime=state_prime, obs=obs)
+        obs = self.convert_state(state, self.init_goal) 
+        done = self.end(state=state, obs=obs)
         rew = self.calculate_reward(obs=obs)
 
-        self.last_pos = [state_prime[0], state_prime[1]]
+        self.last_pos = [state[0], state[1]]
         self.last_action = np.array([f_t ,alpha_t])
 
         if self.MR_data is not None:
-            self.MR_data.new_transition(state_prime, obs, self.last_action, rew)
+            self.MR_data.new_transition(state, obs, self.last_action, rew)
         info = dict()
+        
         return obs, rew, done, info
-
+    
     def convert_state(self, state,goal_loc):
         """
         This method generated the features used to build the reward function
@@ -86,7 +87,7 @@ class MR_Env(Env):
         else:
             return -0.1# self.min_dist2goal/d
 
-    def end(self, state_prime, obs):
+    def end(self, state, obs):
         """
         ? This method finds out whether we are at the end of episode
         """
@@ -180,9 +181,6 @@ def save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
         anim = animation.FuncAnimation(plt.gcf(), animate, frames = len(frames), interval=50)
         anim.save(path + filename, writer='imagemagick', fps=60)
 
-    
-
-
 if __name__ == '__main__':
     frames = []
     mode = 'normal' # mode: 'normal', 'joystick'
@@ -190,17 +188,16 @@ if __name__ == '__main__':
     if mode == 'normal':
         env = MR_Env()
         episode_action_obs = []
-        for i_episode in range(5):
+        for i_episode in range(1):
             observation = env.reset()
-            for t in range(50):
+            for t in range(20):
                 frames.append(env.render())
                 # env.render()
-                action = np.array([20, 2*np.pi - 0.0872665 ]) # -2*np.pi/(i_episode+1)
+                action = np.array([20, np.pi/4]) # -2*np.pi/(i_episode+1)
                 observation, reward, done, info = env.step(action)
                 
                 # print ("observation, reward, done, info \n")
-                print (observation)
-                print ("Actions: rolling_frequesncy: %2.2f, alpha : %5.2f" % (action[0],action[1]))
+                # print (observation)
                 if done:
                     print("Episode finished after {} timesteps".format(t + 1))
                     break

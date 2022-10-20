@@ -28,6 +28,7 @@ def angle_between(pts1, pts2):
         angles = np.arctan2(delta[1],delta[0])
     return angles # % (2*np.pi) 
 
+
 file = 'closedloop6.pickle'
 
 dataset = pd.read_pickle(file)[0]
@@ -68,25 +69,25 @@ distance = ((pt[0] - nearest_node[0] )**2 + (pt[1] - nearest_node[1])**2)**0.5
 
 for t in range(T):  
     count =0 
-    while (distance > error_tol) and (count <50): 
+    while (distance > error_tol) and (count <5): 
         alpha = angle_between(pt, nearest_node)
         action = np.array([5, alpha])
-        print("cur_pos : ",pt.round(decimals=1),", dist : ",round(distance,2) , 
-              ", alpha : ", round(np.rad2deg(alpha)), ", Moving to node # ",
-              nearest_node.round(decimals=1))
+        # print("cur_pos : ",pt.round(decimals=1),", dist : ",round(distance,2) , 
+        #       ", alpha : ", round(np.rad2deg(alpha)), ", Moving to node # ",
+        #       nearest_node.round(decimals=1))
         observation, reward, done, info = env.step(action)
         pt = observation[:2]
         xy_model = np.append(xy_model,np.array([pt]) , axis=0)
         distance = ((pt[0] - nearest_node[0] )**2 + (pt[1] - nearest_node[1])**2)**0.5
         count += 1
     target_idx +=  1 
-    if target_idx == target_pos.shape[0]-1: 
+    if target_idx >= target_pos.shape[0]-1: 
         break 
     nearest_node = target_pos[target_idx]
     distance = ((pt[0] - nearest_node[0] )**2 + (pt[1] - nearest_node[1])**2)**0.5
-    print("REACHED!! cur_pos : ",pt.round(decimals=1),", dist : ",round(distance,2) , 
-              ", alpha : ", np.rad2deg(alpha).round(decimals=1), ", Node Reached , Next ",
-              nearest_node.round(decimals=1))
+    # print("REACHED!! cur_pos : ",pt.round(decimals=1),", dist : ",round(distance,2) , 
+              # ", alpha : ", np.rad2deg(alpha).round(decimals=1), ", next node ",
+              # nearest_node.round(decimals=1))
 
     # print ("Actions: rolling_frequesncy: %2.2f, alpha : %5.2f" % (action[0],action[1]))
  
