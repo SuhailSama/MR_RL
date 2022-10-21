@@ -61,7 +61,7 @@ def run_exp(actions):
     pass 
     
     
-    return X,Y,alpha,time,freq
+    # return X,Y,alpha,time,freq
 
 def plot_traj(X1,Y1,X2=[],Y2=[], legends=["experiment"]):
     fig, ax = plt.subplots()
