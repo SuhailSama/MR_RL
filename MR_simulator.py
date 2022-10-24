@@ -12,9 +12,9 @@ class Simulator:
         self.number_iterations = 100  #  iterations for each step
         self.integrator = None # 
         ##MR Constants
-        self.a = 1.6531366739638718
+        self.a0 = 0
         self.state_prime = None
-
+        self.noise_var = 1
     def reset_start_pos(self, state_vector):
         x0, y0 = state_vector[0], state_vector[1]
         self.last_state = np.array([x0, y0])
@@ -44,9 +44,9 @@ class Simulator:
         # Derivative function
 
         # simple model
-        mu, sigma = 0, 0.1 # mean and standard deviation
-        dx1 = self.a * f_t  *np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0]
-        dx2 = self.a * f_t  *np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0]
+        mu, sigma = 0, self.noise_var # mean and standard deviation
+        dx1 = self.a0 * f_t  *np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0]
+        dx2 = self.a0 * f_t  *np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0]
 
         # print("\n Actions taken:" , self.current_action)
         # print("\n np.cos(alpha_t) ",np.cos(alpha_t),"np.sin(alpha_t) ",np.sin(alpha_t))

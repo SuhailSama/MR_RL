@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 import gym 
 
 """
-To do :
-- Write Reward Function 
+TODO :
+- Reward Function w/logical specs?
 - 
 
 """
@@ -24,7 +24,7 @@ class MR_Env(Env):
         # assert type == 'continuous' or type == 'discrete', 'type must be continuous or discrete'
         # assert action_dim > 0 and action_dim <=2, 'action_dim must be 1 or 2'
         self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([20, np.pi*2]))
-        self.observation_space = spaces.Box(low=np.array([-500,  -500,-500,  -500, 00]), high=np.array([500, 500, 500, 500,8000])) # x,y,x_target,y_target,distance
+        self.observation_space = spaces.Box(low=np.array([-5000,  -5000,-5000,  -5000, 00]), high=np.array([5000, 5000, 5000, 5000,80000])) # x,y,x_target,y_target,distance
         self.init_space = spaces.Box(low=np.array([100, 100]), high=np.array([120, 120]))
         self.init_goal_space = spaces.Box(low=np.array([-31, -31]), high=np.array([-32, -32]))
         self.MR_data = None
@@ -55,7 +55,7 @@ class MR_Env(Env):
         # convert simulator states into observable states
         obs = self.convert_state(state, self.init_goal) 
         done = self.end(state=state, obs=obs)
-        rew = self.calculate_reward(obs=obs)
+        rew = 10#self.calculate_reward(obs=obs)
 
         self.last_pos = [state[0], state[1]]
         self.last_action = np.array([f_t ,alpha_t])
@@ -115,13 +115,15 @@ class MR_Env(Env):
         #     # print("uh")
         return self.init_goal
 
-    def reset(self, init = None):
+    def reset(self, init = None,noise_var = 1,a0=1):
         if init is None: 
             init = self.init_space.sample()
             
         print("starting positions")
         print(init.shape)
         self.set_goal(init)
+        self.simulator.noise_var = noise_var
+        self.simulator.a0 = a0
         self.simulator.reset_start_pos(init)
         self.goal_loc = self.init_space.sample()
         
