@@ -7,7 +7,10 @@ import numpy as np
 import sys
 import Learning_module as GP # type: ignore
 from MR_env import MR_Env, save_frames_as_gif
+from MR_experiment import run_exp
 import colorsys
+
+
 
 #helper function to read some existing data
 def readfile(filename):
@@ -56,13 +59,6 @@ def run_sim(actions,init_pos=None,noise_var = 1,a0 =1):
     
     return X,Y,alpha,time,freq
 
-
-def run_exp(actions):
-    # TODO: Max will update
-    pass 
-    
-    
-    # return X,Y,alpha,time,freq
 
 def plot_xy(xys, legends=[""],fig_title=[""]):
     fig, ax = plt.subplots()
@@ -331,7 +327,7 @@ time_steps = 400
 actions = np.array([[1, 0.3*np.pi*((t/time_steps)-1)*(-1)**(t//100)] 
                         for t in range(1,time_steps)]) # [T,action_dim]
 
-noise_vars= [0.1,1.0,10]
+noise_vars= [1,1.0,10]
 a0_def = 1
 for i in range(len(noise_vars)):
     
@@ -432,7 +428,8 @@ for i in range(len(noise_vars)):
     legends =["base (no noise)",
               "sim with a0",
               "w/noise correction",
-              "w/noise correction + a0_learned"]
+              "w/noise correction + a0_learned"
+              ]
     
     fig_title   = ["TEST"]
     plot_xy(xys,legends =legends,fig_title =["Trajectories"]) 
@@ -444,5 +441,6 @@ for i in range(len(noise_vars)):
     # plot_traj(v_errs, legends = ['v_errorX1', 'v_errorY1','v_errorX2','v_errorY2'],fig_title =["v-errors"])
     # plot_vel([vxys_1],legends =['def a0'],fig_title =fig_title) 
     plot_vel([vxys_2],legends =['learned a0'],fig_title =fig_title) 
+    
     break
 # v_desired,v_error,v_stdv,vx,vy = vxys_1
