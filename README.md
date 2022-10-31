@@ -6,6 +6,7 @@ Repo contains:
 - "Read_data.py" - reads experimental data from pkl (sent by Max). This needs to be modified accordingly 
 - "Learning_Module.py" - Gaussian Process learning module 
 - "MR_ddpg.py" - RL control using MDDPG 
+- ""MR_experiment.py" - code for passing actions to the experiemtn and returning outputs (X,Y,alphas,time,freq)
 - Scripts from Max 
 - ...
 
