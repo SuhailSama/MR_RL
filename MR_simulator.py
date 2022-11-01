@@ -31,6 +31,10 @@ class Simulator:
 
         return self.last_state
 
+
+    def a0_linear(self, alpha_t, f_t):
+        return self.a0 + (alpha_t)/(2*np.pi)*np.random.normal(0, 0.1, 1)[0]
+
     def simulate(self, t, states):
         """
         :param states: Space state
@@ -45,8 +49,8 @@ class Simulator:
 
         # simple model
         mu, sigma = 0, self.noise_var # mean and standard deviation
-        dx1 = self.a0 * f_t  *np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0]
-        dx2 = self.a0 * f_t  *np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0]
+        dx1 = self.a0_linear(alpha_t, f_t) * f_t  *np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
+        dx2 = self.a0_linear(alpha_t, f_t) * f_t  *np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
 
         # print("\n Actions taken:" , self.current_action)
         # print("\n np.cos(alpha_t) ",np.cos(alpha_t),"np.sin(alpha_t) ",np.sin(alpha_t))

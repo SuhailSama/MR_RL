@@ -4,6 +4,17 @@ from scipy.ndimage import uniform_filter1d
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy.optimize import minimize
+
+
+
+def objective(alpha, a0, freq, v_d, GPx, GPy):
+
+    mux = GPx.predict(alpha.reshape(1,-1))
+    muy = GPy.predict(alpha.reshape(1,-1))
+
+    return (mux - v_d[0])**2 + (muy - v_d[1])**2 + 2*a0*freq*( (mux - v_d[0])*math.cos(alpha) + (muy - v_d[1])*math.sin(alpha) )
+
 
 class LearningModule:
     def __init__(self):
@@ -16,6 +27,9 @@ class LearningModule:
         self.X = []
         self.Yx = []
         self.Yy = []
+
+        self.a0 = 0
+        self.f = 0
 
 
 
@@ -54,8 +68,6 @@ class LearningModule:
             vy = vy[0:todel-1]
             time = time[0:todel-1]
             speed = speed[0:todel-1]
-            if len(freq) >1:
-                freq = freq[0:todel-1]
 
         a0 = np.median(speed) / freq 
 
@@ -72,6 +84,8 @@ class LearningModule:
         print("r^2 are " + str(self.gprX.score(X, Yx)) + " and " + str(self.gprY.score(X, Yy)) )
 
         self.X = X; self.Yx = Yx; self.Yy = Yy
+        self.a0 = a0
+        self.freq = freq
 
         return a0
 
@@ -116,13 +130,27 @@ class LearningModule:
 
 
 
+    def predict(self, vd):
 
-    def predict(self, alpha):
+        #alpha desired comes from arctan of desired velocity
+        alpha_d = np.array(math.atan2(vd[1], vd[0]))
 
+        #estimate the uncertainty for the desired alpha
+        muX = self.gprX.predict(alpha_d.reshape(1,-1))
+        muY = self.gprY.predict(alpha_d.reshape(1,-1))
+
+        #select the initial alpha guess as atan2 of v_d - v_error
+        x0 = math.atan2(vd[1] - muY, vd[0] - muX)
+
+        result = minimize(objective, x0, args=(self.a0, self.freq, vd, self.gprX, self.gprY))
+
+        alpha = np.array(result.x)
+
+        #generate the uncertainty for the new alpha we're sending
         muX,sigX = self.gprX.predict(alpha.reshape(1,-1), return_std=True)
         muY,sigY = self.gprY.predict(alpha.reshape(1,-1), return_std=True)
 
-        return muX, muY, sigX, sigY
+        return alpha, muX, muY, sigX, sigY
 
     '''
     #get bounds on learning - 2stdv ~= 95% of data
