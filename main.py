@@ -151,7 +151,7 @@ for i in range(len(noise_vars)):
     gp_sim = GP.LearningModule()
     a0_sim = gp_sim.learn(px_sim, py_sim, alpha_sim,freq_sim[0], time_sim)
     print("Estimated a0 value is " + str(a0_sim))
-    # gp_sim.visualize()
+    gp_sim.visualize()
     xys  = [(px_base,py_base),
             (px_sim,py_sim),
            ]
@@ -192,7 +192,7 @@ for i in range(len(noise_vars)):
                                                          a0=a0_def)
     
     
-    N = 5 #filter position data due to noisy sensing
+    N = 7 #filter position data due to noisy sensing
 
     px_sim2 = uniform_filter1d(px_sim2, N, mode="nearest")
     py_sim2 = uniform_filter1d(py_sim2, N, mode="nearest")
@@ -216,16 +216,16 @@ for i in range(len(noise_vars)):
     
     
     vxs = [(time_sim,vx),
-            (time_sim,v_pred[:,0]+v_stdv[:,0]),
-            (time_sim,v_pred[:,0]-v_stdv[:,0]),
+            (time_sim,v_pred[:,0]+2*v_stdv[:,0]),
+            (time_sim,v_pred[:,0]-2*v_stdv[:,0]),
             (time_sim,v_pred[:,0])]
     plot_traj(vxs,legends =['v_sim',
                                       'v_pred+',
                                       'v_pred-',
                                       'v_pred'],fig_title =["vel_X"])
     vys = [(time_sim,vy),
-            (time_sim,v_pred[:,1]+v_stdv[:,1]),
-            (time_sim,v_pred[:,1]-v_stdv[:,1]),
+            (time_sim,v_pred[:,1]+2*v_stdv[:,1]),
+            (time_sim,v_pred[:,1]-2*v_stdv[:,1]),
             (time_sim,v_pred[:,1])]
     plot_traj(vys,legends =['v_sim',
                                       'v_pred+',

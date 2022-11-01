@@ -33,7 +33,7 @@ class Simulator:
 
 
     def a0_linear(self, alpha_t, f_t):
-        return self.a0 + (alpha_t)/(2*np.pi)*np.random.normal(0, 0.1, 1)[0]
+        return self.a0 + (alpha_t)/(2*np.pi)+np.random.normal(0, 0.9, 1)[0]
 
     def simulate(self, t, states):
         """
