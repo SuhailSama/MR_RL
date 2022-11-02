@@ -11,6 +11,7 @@ import matplotlib.patches as mpatches
 import colorsys
 from MR_env import MR_Env, save_frames_as_gif
 import numpy as np 
+import matplotlib.cm as cm
 
 #helper function to read some existing data
 def readfile(filename):
@@ -55,7 +56,7 @@ def run_sim(actions,init_pos=None,noise_var = 1,a0 =1):
     Y      = states[:,1]
     alpha   = actions[:,1]
     freq    = actions[:,0]
-    time    = np.arange(len(X))
+    time    = np.linspace(0, (len(X) - 1)/30.0, len(X)) # (np.arange(len(X))) / 30.0 #timestep is 1/30
     
     return X,Y,alpha,time,freq
 
@@ -71,15 +72,33 @@ def plot_xy(xys, legends=[""],fig_title=[""]):
     fig.suptitle(fig_title[0])
     plt.show()
 
+def plot_bounded_curves(curves, bounds, legends=[""], fig_title=[""]):
+    fig, ax = plt.subplots()
+    for (t, lb, ub) in bounds:
+        ax.fill_between(t, lb, ub)
+
+    colors = cm.rainbow(np.linspace(0, 1, len(curves)))
+    for (X,Y),legend,c in zip(curves,legends,colors):
+        ax.plot(X,Y, color=c, label=legend)
+
+
+    ax.legend(loc='upper left', 
+                shadow=True, fontsize='x-small')
+    fig.suptitle(fig_title[0])
+    plt.show()   
+
+
 def plot_traj(xts, legends=[""],fig_title=[""]):
     fig, ax = plt.subplots()
     for (times,xs),legend in zip(xts,legends):
-        ax.plot(times,xs,alpha =0.4, label=legend)
+        ax.plot(times,xs,label=legend)
    
     ax.legend(loc='upper left', shadow=True, fontsize='x-small')
     fig.suptitle(fig_title[0])
     plt.show()
 
+
+    
 def plot_vel(vxys, legends=[""],fig_title=[""]):
     fig, ax = plt.subplots()
     figy, ay = plt.subplots()

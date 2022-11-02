@@ -13,7 +13,9 @@ def objective(alpha, a0, freq, v_d, GPx, GPy):
     mux = GPx.predict(alpha.reshape(1,-1))
     muy = GPy.predict(alpha.reshape(1,-1))
 
-    return (mux - v_d[0])**2 + (muy - v_d[1])**2 + 2*a0*freq*( (mux - v_d[0])*math.cos(alpha) + (muy - v_d[1])*math.sin(alpha) )
+    return (a0*freq*np.cos(alpha) + mux - v_d[0])**2 + (a0*freq*np.sin(alpha) + mux - v_d[1])**2
+
+    return (a0*freq)**2 + (mux - v_d[0])**2 + 2*a0*freq*np.cos(alpha)*(mux - v_d[0]) + (muy - v_d[1])**2 + 2*a0*freq*np.sin(alpha)*(muy - v_d[1])
 
 
 class LearningModule:
@@ -40,8 +42,8 @@ class LearningModule:
         time -= time[0]
 
         # apply smoothing to the position signals before calculating velocity 
-        # dt is ~ 35 ms, so filter time ~= 0.035*N
-        N = (int)(1 / 0.035) #filter position data due to noisy sensing
+        # dt is ~ 35 ms, so filter time ~= 0.035*N (this gives N = 38)
+        N = (int)(1 / 0.035 / 2) #filter position data due to noisy sensing
 
         px = uniform_filter1d(px, N, mode="nearest")
         py = uniform_filter1d(py, N, mode="nearest")
@@ -51,8 +53,8 @@ class LearningModule:
         vy = np.gradient(py, time)
 
         # apply smoothing to the velocity signal
-        vx = uniform_filter1d(vx, N, mode="nearest")
-        vy = uniform_filter1d(vy, N, mode="nearest")
+        vx = uniform_filter1d(vx, (int)(N/2), mode="nearest")
+        vy = uniform_filter1d(vy, (int)(N/2), mode="nearest")
 
         #calculate speed to fit a_0
         speed = np.sqrt( vx**2 + vy**2 )
@@ -141,8 +143,8 @@ class LearningModule:
 
         #select the initial alpha guess as atan2 of v_d - v_error
         x0 = math.atan2(vd[1] - muY, vd[0] - muX)
-
-        result = minimize(objective, x0, args=(self.a0, self.freq, vd, self.gprX, self.gprY))
+        
+        result = minimize(objective, x0, method='L-BFGS-B', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi)])
 
         alpha = np.array(result.x)
 

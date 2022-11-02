@@ -8,13 +8,13 @@ class Simulator:
     def __init__(self):
         self.last_state = None
         self.current_action = None
-        self.time_span = 1          #  seconds for each iteration
+        self.time_span = 1.0/30         #  seconds for each iteration
         self.number_iterations = 100  #  iterations for each step
         self.integrator = None # 
         ##MR Constants
         self.a0 = 0
         self.state_prime = None
-        self.noise_var = 1
+        self.noise_var = 0
     def reset_start_pos(self, state_vector):
         x0, y0 = state_vector[0], state_vector[1]
         self.last_state = np.array([x0, y0])
@@ -32,8 +32,8 @@ class Simulator:
         return self.last_state
 
 
-    def a0_linear(self, alpha_t, f_t):
-        return self.a0 + (alpha_t)/(2*np.pi)+np.random.normal(0, 0.9, 1)[0]
+    def a0_linear(self, alpha_t, f_t, sigma):
+        return self.a0 + (alpha_t/np.pi)*0.2 + np.random.normal(0, sigma, 1)[0]
 
     def simulate(self, t, states):
         """
@@ -49,8 +49,14 @@ class Simulator:
 
         # simple model
         mu, sigma = 0, self.noise_var # mean and standard deviation
-        dx1 = self.a0_linear(alpha_t, f_t) * f_t  *np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
-        dx2 = self.a0_linear(alpha_t, f_t) * f_t  *np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
+
+        #select a value of a0 -- either costant or with model mismatch
+        a0 = self.a0
+        if sigma > 0:
+            a0 = self.a0_linear(alpha_t, f_t, 0)
+            
+        dx1 = a0 * f_t  * np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
+        dx2 = a0 * f_t  * np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
 
         # print("\n Actions taken:" , self.current_action)
         # print("\n np.cos(alpha_t) ",np.cos(alpha_t),"np.sin(alpha_t) ",np.sin(alpha_t))
