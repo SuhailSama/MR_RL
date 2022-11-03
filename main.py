@@ -133,6 +133,11 @@ from scipy.ndimage import uniform_filter1d
 freq = 4
 a0_def = 1.5
 
+#first we do nothing
+time_steps = 100 #do nothing for 100/30 seconds
+actions_idle = np.zeros((time_steps, 2))
+
+
 #note: timestep is 1/30 seconds, the rate we get data at in the experiment
 time_steps = 300 #train for 10s at 30 hz
 cycles = 3 #train my moving in 3 circles
@@ -147,15 +152,14 @@ actions_circle[:,1] = np.linspace(-np.pi, np.pi, steps)
 #stack the circle actions to get our learning set
 actions_learn = np.vstack([actions_circle]*cycles)
 
-
 #generate actions for testing (1/30 hz for 30 seconds)
 time_steps = 1000
 
 actions = np.zeros( (time_steps, 2) )
 actions[:,0] = freq
 
-actions[0:200,1]   = np.linspace(0, np.pi, 200)
-actions[200:400,1] = np.linspace(np.pi, -np.pi/2, 200)
+actions[0:200,1]   = np.linspace(0, np.pi/2, 200)
+actions[200:400,1] = np.linspace(np.pi/2, -np.pi/2, 200)
 actions[400:600,1] = np.linspace(-np.pi/2, 0, 200)
 actions[600:800,1] = np.linspace(0, np.pi/8, 200)
 actions[800::,1]  = np.linspace(np.pi/8, -np.pi, 200)
@@ -164,55 +168,71 @@ actions[800::,1]  = np.linspace(np.pi/8, -np.pi, 200)
 #                        for t in range(1,time_steps)]) # [T,action_dim]
 
 
-noise_vars= [0.0001]
+noise_vars= [0.5]
 for i in range(len(noise_vars)):
-    # BASE_train: no noise, no learning -- the desired trajectory
-    px_base,py_base,alpha_base,time_base,freq_base = run_sim(actions_learn,
-                                                             init_pos = np.array([0,0]),
-                                                             noise_var = 0.0,a0=a0_def)
-    # sim: noise, no learning -- the actual system trajectory
-    px_sim,py_sim,alpha_sim, time_sim,freq_sim = run_sim(actions_learn,
+
+
+    gp_sim = GP.LearningModule()
+
+    #first we will do absolutely nothing to try and calculate the drift term
+    px_idle,py_idle,alpha_idle,time_idle,freq_idle = run_sim(actions_idle,
+                                                                init_pos = np.array([0,0]),
+                                                                noise_var = noise_vars[i],a0=a0_def)
+
+
+    gp_sim.estimateDisturbance(px_idle, py_idle, time_idle)
+
+
+    # THIS IS WHAT THE SIMULATION ACTUALLY GIVES US -- model mismatch && noise
+    px_sim,py_sim,alpha_sim,time_sim,freq_sim = run_sim(actions_learn,
                                                          init_pos = np.array([0,0]),
                                                          noise_var = noise_vars[i],a0=a0_def)
 
-    #sim_vars = [(time_sim,px_sim),
-    #        (time_sim,alpha_sim)]
-    #plot_traj(sim_vars,legends =['v_sim','alpha_sim'],fig_title =["vel_X"])
-    
 
-    # learn noise and a0
-    gp_sim = GP.LearningModule()
+    # learn noise and a0 -- note px_desired and py_desired need to be at the same time
     a0_sim = gp_sim.learn(px_sim, py_sim, alpha_sim, freq, time_sim)
     print("Estimated a0 value is " + str(a0_sim))
     gp_sim.visualize()
-    xys  = [(px_base,py_base),
+
+    # THIS CALCULATES THE DESIRED TRAJECTORY FROM OUR a0 ESTIMATE
+    px_desired,py_desired,alpha_desired,time_desired,freq_desired = run_sim(actions_learn,
+                                                                            init_pos = np.array([0,0]),
+                                                                            noise_var = 0.0,a0=a0_sim)
+
+    # plot the desired vs achieved velocities
+    xys  = [(px_desired,py_desired),
             (px_sim,py_sim),
            ]
-    legends =["base (no noise)","sim with a0"
+    legends =["Desired Trajectory","Simulated Trajectory (no learning)"
               ]
-    fig_title   = ["Learn w and w/o noise"]
-    plot_xy(xys,legends =legends,fig_title =["Learning traj w & w/o noise"]) 
+    fig_title   = ["Learning Dataset"]
+    plot_xy(xys,legends =legends,fig_title =fig_title) 
     
 
+    ###### END OF LEARNING, NOW WE DO TESTING ######
 
-    # BASE_test: no noise, no learning -- this is the desired trajectory
-    px_base,py_base,alpha_base,time_base,freq_base = run_sim(actions,
+
+    # Desired Trajectory: no noise, no learning -- this is the desired trajectory
+    px_desired,py_desired,alpha_desired,time_desired,freq_desired = run_sim(actions,
                                                              init_pos = np.array([0,0]),
                                                              noise_var = 0.0,
-                                                             a0=a0_def)
-    # sim: noise, no learning -- this is the achieved trajectory
-    px_sim1,py_sim1,alpha_sim, time_sim,freq_sim = run_sim(actions,
+                                                             a0=a0_sim) #assume we used a0_sim to generate the control actions
+
+    # Baseline: actual noise and parameters, no learning -- this is the achieved trajectory
+    px_baseline,py_baseline,alpha_baseline, time_baseline,freq_baseline = run_sim(actions,
                                                          init_pos = np.array([0,0]),
                                                          noise_var = noise_vars[i],
                                                          a0=a0_def)
-    vd = np.zeros( (len(time_sim), 2) )
-    v_pred = np.zeros( (len(time_sim), 2) )
-    v_stdv  = np.zeros( (len(time_sim), 2) )
-    
+
+    #generate our desired, predicted, and error bars for velocity for the test
+    vd = np.zeros( (len(actions), 2) )
+    v_pred = np.zeros( (len(actions), 2) )
+    v_stdv  = np.zeros( (len(actions), 2) )
     actions_corrected = np.zeros(actions.shape)
-    for ii in range(0, len(actions_corrected)):
+
+    for ii in range(len(actions_corrected)):
         vd[ii,:] = a0_sim*freq*np.array( [np.cos(actions[ii,1]), np.sin(actions[ii,1])] ).reshape(1,-1)
-        actions_corrected[ii,0] = actions[ii,0]
+        actions_corrected[ii,0] = actions[ii,0] #don't correct the rolling frequency
         actions_corrected[ii,1], muX, muY, sigX, sigY = find_alpha_corrected(vd[ii],gp_sim)
         #our predicted velocity is model + error
         v_pred[ii,0] = a0_sim*freq*np.cos(actions_corrected[ii,1]) + muX
@@ -222,54 +242,91 @@ for i in range(len(noise_vars)):
         
     
      # sim: noise, learning
-    px_sim2,py_sim2,alpha_sim, time_sim,freq_sim = run_sim(actions_corrected,
+    px_learn,py_learn,alpha_learn, time_learn,freq_learn = run_sim(actions_corrected,
                                                          init_pos = np.array([0,0]),
                                                          noise_var = noise_vars[i],
-                                                         a0=a0_def)
+                                                         a0=a0_def) #simulate using the true value of a0
     
     
     #### Plot Resulting Trajectories
-    xys = [(px_base,py_base),
-           (px_sim1,py_sim1),
-           (px_sim2,py_sim2)]
-    legends= ["base",
-                "no learning ",
+    xys = [(px_desired,py_desired),
+           (px_baseline,py_baseline),
+           (px_learn,py_learn)]
+    legends= ["desired",
+                "baseline",
                 "learning"]
     plot_xy(xys,legends =legends,fig_title =["Trajectories"]) 
 
     
-    alphas = [(time_sim,actions[:,1]),
-              (time_sim,actions_corrected[:,1]) ]
+    alphas = [(time_baseline,actions[:,1]),
+              (time_learn,actions_corrected[:,1]) ]
     
     plot_traj(alphas,legends =['alpha',
                                       'alpha_corrected'],fig_title =["alphas"])
     
     
     ### plot x and y velocity bounds
-    #N=7
-    #px_sim2 = uniform_filter1d(px_sim2, N, mode="nearest")
-    #py_sim2 = uniform_filter1d(py_sim2, N, mode="nearest")
-    vx_learn = np.gradient(px_sim2, time_sim)
-    vy_learn = np.gradient(py_sim2, time_sim)
-    #vx = uniform_filter1d(vx, 3, mode="nearest")
-    #vy = uniform_filter1d(vy, 3, mode="nearest")
+    N=14
+    px_learn = uniform_filter1d(px_learn, N, mode="nearest")
+    px_learn = uniform_filter1d(px_learn, N, mode="nearest")
+    vx_learn = np.gradient(px_learn, time_learn)
+    vy_learn = np.gradient(py_learn, time_learn)
 
-    vx_baseline = np.gradient(px_sim1, time_sim)
-    vy_baseline = np.gradient(py_sim1, time_sim)
+    vx_baseline = np.gradient(px_baseline, time_baseline)
+    vy_baseline = np.gradient(py_baseline, time_baseline)
 
-    vx_curve = [(time_sim, vx_learn),
-                (time_sim, vx_baseline),
-                (time_sim, a0_def*freq*np.cos(alpha_sim))]
-    vx_bounds   = [(time_sim, v_pred[:,0]+2*v_stdv[:,0], v_pred[:,0]-2*v_stdv[:,0]), 
-                (time_sim, v_pred[:,0]+v_stdv[:,0], v_pred[:,0]-v_stdv[:,0])]
-    plot_bounded_curves(vx_curve,vx_bounds,legends=['learning', 'uncorrected', 'desired'])
+    vx_baseline = uniform_filter1d(vx_baseline, 3, mode="nearest")
+    vx_baseline = uniform_filter1d(vx_baseline, 3, mode="nearest")
 
-    vy_curve = [(time_sim,vy_learn),
-                (time_sim,vy_baseline),
-                (time_sim, a0_def*freq*np.sin(alpha_sim))]
-    vy_bounds   = [(time_sim, v_pred[:,1]+2*v_stdv[:,1], v_pred[:,1]-2*v_stdv[:,1]), 
-                (time_sim, v_pred[:,1]+v_stdv[:,1], v_pred[:,1]-v_stdv[:,1])]
-    plot_bounded_curves(vy_curve,vy_bounds,legends=['learning', 'uncorrected', 'desired'])
+
+#    vx_curve = [(time_learn,      vx_learn),
+#                (time_baseline[N:-N], vx_baseline[N:-N]),
+#                (time_desired,  a0_def*freq*np.cos(alpha_desired))]
+#    vx_bounds   = [(time_learn, v_pred[:,0]+2*v_stdv[:,0], v_pred[:,0]-2*v_stdv[:,0]), 
+#                (time_learn, v_pred[:,0]+v_stdv[:,0], v_pred[:,0]-v_stdv[:,0])]
+#    plot_bounded_curves(vx_curve,vx_bounds,legends=['learning', 'uncorrected', 'desired'])
+#
+#    vy_curve = [(time_learn,    vy_learn),
+#                (time_baseline[N:-N], vy_baseline[N:-N]),
+#                (time_desired,  a0_def*freq*np.sin(alpha_desired))]
+#    vy_bounds   = [(time_learn, v_pred[:,1]+2*v_stdv[:,1], v_pred[:,1]-2*v_stdv[:,1]), 
+#                   (time_learn, v_pred[:,1]+v_stdv[:,1], v_pred[:,1]-v_stdv[:,1])]
+#    plot_bounded_curves(vy_curve,vy_bounds,legends=['learning', 'uncorrected', 'desired'])
+
+
+
+    ###plot the desired vs actual velocity with the GP bounds -- see if we learned the error or not
+    vx_desired = a0_sim * freq * np.cos(alpha_desired)
+    vy_desired = a0_sim * freq * np.sin(alpha_desired)
+
+    vel_error = np.zeros( (len(time_desired), 2) )
+    vel_sigma = np.zeros( (len(time_desired), 2) )
+    for ti in range(len(time_desired)):
+        muX, muY, sigX, sigY = gp_sim.error( [vx_desired[ti], vy_desired[ti]] )
+        
+        vel_error[ti,:] = np.array([muX, muY]).reshape(1,-1)
+
+        vel_sigma[ti,:] = np.array([sigX, sigY]).reshape(1,-1)
+
+
+
+    vx_curve = [(time_baseline, vx_baseline),
+                (time_desired,  vx_desired),
+                (time_desired,  vx_desired + vel_error[:,0])]
+    vx_bounds   = [(time_desired, vx_desired + vel_error[:,0] + 2*vel_sigma[:,0], vx_desired + vel_error[:,0] - 2*vel_sigma[:,0]), 
+                   (time_desired, vx_desired + vel_error[:,0] + vel_sigma[:,0], vx_desired + vel_error[:,0] - vel_sigma[:,0])]
+
+    plot_bounded_curves(vx_curve,vx_bounds,legends=['baseline', 'desired', 'estimate'], fig_title=["Estimating Vx Error"])
+
+
+    vy_curve = [(time_baseline, vy_baseline),
+                (time_desired,  vy_desired),
+                (time_desired,  vy_desired + vel_error[:,1])]
+    vy_bounds   = [(time_desired, vy_desired + vel_error[:,1] + 2*vel_sigma[:,1], vy_desired + vel_error[:,1] - 2*vel_sigma[:,1]), 
+                   (time_desired, vy_desired + vel_error[:,1] + vel_sigma[:,1], vy_desired + vel_error[:,1] - vel_sigma[:,1])]
+
+    plot_bounded_curves(vy_curve,vy_bounds,legends=['baseline', 'desired', 'estimate'], fig_title=["Estimating Vy Error"])
+
 
     # # time        = np.arange(1,time_steps) #start at t=0 for readability of the final graph
     # # alpha_sim   = actions[:,1]

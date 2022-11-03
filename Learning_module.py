@@ -13,7 +13,8 @@ def objective(alpha, a0, freq, v_d, GPx, GPy):
     mux = GPx.predict(alpha.reshape(1,-1))
     muy = GPy.predict(alpha.reshape(1,-1))
 
-    return (a0*freq*np.cos(alpha) + mux - v_d[0])**2 + (a0*freq*np.sin(alpha) + mux - v_d[1])**2
+
+    #return (a0*freq*np.cos(alpha) + mux - v_d[0])**2 + (a0*freq*np.sin(alpha) + mux - v_d[1])**2
 
     return (a0*freq)**2 + (mux - v_d[0])**2 + 2*a0*freq*np.cos(alpha)*(mux - v_d[0]) + (muy - v_d[1])**2 + 2*a0*freq*np.sin(alpha)*(muy - v_d[1])
 
@@ -32,8 +33,25 @@ class LearningModule:
 
         self.a0 = 0
         self.f = 0
+        self.Dx = 0
+        self.Dy = 0
 
 
+
+    def estimateDisturbance(self, px, py, time):
+        N = (int)(1 / 0.035 / 2) #filter position data due to noisy sensing
+        px = uniform_filter1d(px, N, mode="nearest")
+        py = uniform_filter1d(py, N, mode="nearest")
+        #calculate velocity via position derivative
+        vx = np.gradient(px, time)
+        vy = np.gradient(py, time)
+        # apply smoothing to the velocity signal
+        vx = uniform_filter1d(vx, (int)(N/2), mode="nearest")
+        vy = uniform_filter1d(vy, (int)(N/2), mode="nearest")
+
+        self.Dx = np.mean(vx)
+        self.Dy = np.mean(vy)
+        print("Estimated a D value of [" + str(self.Dx) + ", " + str(self.Dy) + "].")
 
     # px, py, alpha, time are numpy arrays, freq is constant
     # returns an estimate of a_0
@@ -57,7 +75,7 @@ class LearningModule:
         vy = uniform_filter1d(vy, (int)(N/2), mode="nearest")
 
         #calculate speed to fit a_0
-        speed = np.sqrt( vx**2 + vy**2 )
+        speed = np.sqrt( (vx - self.Dx )**2 + (vy - self.Dy)**2 )
 
         #alpha  = 1k means the controller is off, delete those frames
         todel = np.argwhere(alpha >= 500)
@@ -70,6 +88,15 @@ class LearningModule:
             vy = vy[0:todel-1]
             time = time[0:todel-1]
             speed = speed[0:todel-1]
+
+        #smoothing creates a boundary effect -- let's remove it
+        alpha = alpha[N:-N]
+        px = px[N:-N]
+        py = py[N:-N]
+        vx = vx[N:-N]
+        vy = vy[N:-N]
+        time = time[N:-N]
+        speed = speed[N:-N]
 
         a0 = np.median(speed) / freq 
 
@@ -84,6 +111,12 @@ class LearningModule:
 
         print("GP Learning Complete!")
         print("r^2 are " + str(self.gprX.score(X, Yx)) + " and " + str(self.gprY.score(X, Yy)) )
+
+        #plot the velocity error versus time
+        plt.figure()
+        plt.plot(time, vx, time, a0*freq*np.cos(alpha))
+        plt.show()
+
 
         self.X = X; self.Yx = Yx; self.Yy = Yy
         self.a0 = a0
@@ -131,6 +164,15 @@ class LearningModule:
         plt.show()
 
 
+    def error(self, vd):
+        #alpha desired comes from arctan of desired velocity
+        alpha_d = np.array(math.atan2(vd[1], vd[0]))
+
+        #estimate the uncertainty for the desired alpha
+        muX,sigX = self.gprX.predict(alpha_d.reshape(1,-1), return_std=True)
+        muY,sigY = self.gprY.predict(alpha_d.reshape(1,-1), return_std=True)
+
+        return muX, muY, sigX, sigY
 
     def predict(self, vd):
 
@@ -141,10 +183,12 @@ class LearningModule:
         muX = self.gprX.predict(alpha_d.reshape(1,-1))
         muY = self.gprY.predict(alpha_d.reshape(1,-1))
 
+
+
         #select the initial alpha guess as atan2 of v_d - v_error
         x0 = math.atan2(vd[1] - muY, vd[0] - muX)
         
-        result = minimize(objective, x0, method='L-BFGS-B', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi)])
+        result = minimize(objective, x0, args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi)])
 
         alpha = np.array(result.x)
 

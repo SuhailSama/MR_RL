@@ -77,7 +77,7 @@ def plot_bounded_curves(curves, bounds, legends=[""], fig_title=[""]):
     for (t, lb, ub) in bounds:
         ax.fill_between(t, lb, ub)
 
-    colors = cm.rainbow(np.linspace(0, 1, len(curves)))
+    colors = cm.Set1(np.linspace(0, 1, len(curves)))
     for (X,Y),legend,c in zip(curves,legends,colors):
         ax.plot(X,Y, color=c, label=legend)
 
