@@ -177,7 +177,8 @@ for i in range(len(noise_vars)):
     #first we will do absolutely nothing to try and calculate the drift term
     px_idle,py_idle,alpha_idle,time_idle,freq_idle = run_sim(actions_idle,
                                                                 init_pos = np.array([0,0]),
-                                                                noise_var = noise_vars[i],a0=a0_def)
+                                                                noise_var = noise_vars[i],
+                                                                a0=a0_def,is_mismatched=True)
 
 
     gp_sim.estimateDisturbance(px_idle, py_idle, time_idle)
@@ -186,7 +187,8 @@ for i in range(len(noise_vars)):
     # THIS IS WHAT THE SIMULATION ACTUALLY GIVES US -- model mismatch && noise
     px_sim,py_sim,alpha_sim,time_sim,freq_sim = run_sim(actions_learn,
                                                          init_pos = np.array([0,0]),
-                                                         noise_var = noise_vars[i],a0=a0_def)
+                                                         noise_var = noise_vars[i],
+                                                         a0=a0_def,is_mismatched=True)
 
 
     # learn noise and a0 -- note px_desired and py_desired need to be at the same time
@@ -194,6 +196,7 @@ for i in range(len(noise_vars)):
     print("Estimated a0 value is " + str(a0_sim))
     gp_sim.visualize()
 
+    
     # THIS CALCULATES THE DESIRED TRAJECTORY FROM OUR a0 ESTIMATE
     px_desired,py_desired,alpha_desired,time_desired,freq_desired = run_sim(actions_learn,
                                                                             init_pos = np.array([0,0]),
@@ -222,7 +225,7 @@ for i in range(len(noise_vars)):
     px_baseline,py_baseline,alpha_baseline, time_baseline,freq_baseline = run_sim(actions,
                                                          init_pos = np.array([0,0]),
                                                          noise_var = noise_vars[i],
-                                                         a0=a0_def)
+                                                         a0=a0_def,is_mismatched=True)
 
     #generate our desired, predicted, and error bars for velocity for the test
     vd = np.zeros( (len(actions), 2) )
@@ -245,7 +248,7 @@ for i in range(len(noise_vars)):
     px_learn,py_learn,alpha_learn, time_learn,freq_learn = run_sim(actions_corrected,
                                                          init_pos = np.array([0,0]),
                                                          noise_var = noise_vars[i],
-                                                         a0=a0_def) #simulate using the true value of a0
+                                                         a0=a0_def,is_mismatched=True) #simulate using the true value of a0
     
     
     #### Plot Resulting Trajectories
@@ -279,19 +282,19 @@ for i in range(len(noise_vars)):
     vx_baseline = uniform_filter1d(vx_baseline, 3, mode="nearest")
 
 
-#    vx_curve = [(time_learn,      vx_learn),
-#                (time_baseline[N:-N], vx_baseline[N:-N]),
-#                (time_desired,  a0_def*freq*np.cos(alpha_desired))]
-#    vx_bounds   = [(time_learn, v_pred[:,0]+2*v_stdv[:,0], v_pred[:,0]-2*v_stdv[:,0]), 
-#                (time_learn, v_pred[:,0]+v_stdv[:,0], v_pred[:,0]-v_stdv[:,0])]
-#    plot_bounded_curves(vx_curve,vx_bounds,legends=['learning', 'uncorrected', 'desired'])
-#
-#    vy_curve = [(time_learn,    vy_learn),
-#                (time_baseline[N:-N], vy_baseline[N:-N]),
-#                (time_desired,  a0_def*freq*np.sin(alpha_desired))]
-#    vy_bounds   = [(time_learn, v_pred[:,1]+2*v_stdv[:,1], v_pred[:,1]-2*v_stdv[:,1]), 
-#                   (time_learn, v_pred[:,1]+v_stdv[:,1], v_pred[:,1]-v_stdv[:,1])]
-#    plot_bounded_curves(vy_curve,vy_bounds,legends=['learning', 'uncorrected', 'desired'])
+    vx_curve = [(time_learn,      vx_learn),
+                (time_baseline[N:-N], vx_baseline[N:-N]),
+                (time_desired,  a0_def*freq*np.cos(alpha_desired))]
+    vx_bounds   = []#[(time_learn, v_pred[:,0]+2*v_stdv[:,0], v_pred[:,0]-2*v_stdv[:,0]), 
+                #(time_learn, v_pred[:,0]+v_stdv[:,0], v_pred[:,0]-v_stdv[:,0])]
+    plot_bounded_curves(vx_curve,vx_bounds,legends=['learning', 'uncorrected', 'desired'], fig_title=["Vx Profile"])
+
+    vy_curve = [(time_learn,    vy_learn),
+                (time_baseline[N:-N], vy_baseline[N:-N]),
+                (time_desired,  a0_def*freq*np.sin(alpha_desired))]
+    vy_bounds   = []# [(time_learn, v_pred[:,1]+2*v_stdv[:,1], v_pred[:,1]-2*v_stdv[:,1]), 
+                    #(time_learn, v_pred[:,1]+v_stdv[:,1], v_pred[:,1]-v_stdv[:,1])]
+    plot_bounded_curves(vy_curve,vy_bounds,legends=['learning', 'uncorrected', 'desired'], fig_title=["Vy Profile"])
 
 
 

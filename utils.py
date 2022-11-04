@@ -40,11 +40,11 @@ def readfile(filename):
 
     return X,Y,alpha,time,freq
 
-def run_sim(actions,init_pos=None,noise_var = 1,a0 =1):
+def run_sim(actions,init_pos=None,noise_var = 1,a0 =1, is_mismatched = False):
     state_prime = np.empty((0,2))
     states      = np.empty((0,2))
     env         = MR_Env()
-    state       = env.reset(init = init_pos,noise_var = noise_var,a0=a0)
+    state       = env.reset(init = init_pos,noise_var = noise_var,a0=a0, is_mismatched = is_mismatched)
     # init
     # states      = np.append(states, env.last_pos, axis=0)
     # state_prime = np.append(state_prime, np.array([0,0]), axis=0)

@@ -39,7 +39,6 @@ class MR_Env(Env):
         self.test_performance = False
         # self.init_test_performance = np.linspace(0, np.pi / 15, 10)
         self.counter = 0
-
         self.max_timesteps = 50
         self.min_dist2goal = 30
         self.state_prime = None
@@ -115,7 +114,7 @@ class MR_Env(Env):
         #     # print("uh")
         return self.init_goal
 
-    def reset(self, init = None,noise_var = 1,a0=1):
+    def reset(self, init = None,noise_var = 1,a0=1, is_mismatched=False):
         if init is None: 
             init = self.init_space.sample()
             
@@ -126,6 +125,7 @@ class MR_Env(Env):
         self.simulator.a0 = a0
         self.simulator.reset_start_pos(init)
         self.goal_loc = self.init_space.sample()
+        self.simulator.is_mismatched = is_mismatched
         
         self.last_pos = init
         self.counter = 0

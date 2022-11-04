@@ -15,6 +15,7 @@ class Simulator:
         self.a0 = 0
         self.state_prime = None
         self.noise_var = 0
+        self.is_mismatched = False
     def reset_start_pos(self, state_vector):
         x0, y0 = state_vector[0], state_vector[1]
         self.last_state = np.array([x0, y0])
@@ -33,7 +34,7 @@ class Simulator:
 
 
     def a0_linear(self, alpha_t, f_t, sigma):
-        return self.a0 + (alpha_t/np.pi)*np.pi + np.random.normal(0, sigma, 1)[0]
+        return self.a0 + (alpha_t/np.pi)*0.4 + np.random.normal(0, sigma, 1)[0]
 
     def simulate(self, t, states):
         """
@@ -52,11 +53,13 @@ class Simulator:
 
         #select a value of a0 -- either costant or with model mismatch
         a0 = self.a0
-        if sigma > 0:
-            a0 = self.a0_linear(alpha_t, f_t, sigma/4)
-            
-        dx1 = a0 * f_t  * np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
-        dx2 = a0 * f_t  * np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
+        if self.is_mismatched:
+            #a0 = self.a0_linear(alpha_t, f_t, sigma/4)
+            dx1 = a0 * f_t  * np.cos(alpha_t + 0.1) + np.random.normal(mu, sigma, 1)[0] + 0.2
+            dx2 = a0 * f_t  * np.sin(alpha_t + 0.1) + np.random.normal(mu, sigma, 1)[0] - 0.1
+        else:
+            dx1 = a0 * f_t  * np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
+            dx2 = a0 * f_t  * np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
 
         # print("\n Actions taken:" , self.current_action)
         # print("\n np.cos(alpha_t) ",np.cos(alpha_t),"np.sin(alpha_t) ",np.sin(alpha_t))

@@ -4,11 +4,14 @@ from scipy.ndimage import uniform_filter1d
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.optimize import minimize
+from scipy.optimize import minimize, minimize_scalar
 
 
 
 def objective(alpha, a0, freq, v_d, GPx, GPy):
+
+    
+    alpha = np.array(alpha)
 
     mux = GPx.predict(alpha.reshape(1,-1))
     muy = GPy.predict(alpha.reshape(1,-1))
@@ -22,10 +25,10 @@ def objective(alpha, a0, freq, v_d, GPx, GPy):
 class LearningModule:
     def __init__(self):
         # kernel list is the kernel cookbook from scikit-learn
-        kernel = RBF(length_scale=1.0, length_scale_bounds=(1e-3, 10.0)) + WhiteKernel()
+        kernel = RBF(length_scale=1.0, length_scale_bounds=(1e-2, 10.0)) + WhiteKernel()
         #create the X and Y GP regression objects
-        self.gprX = GaussianProcessRegressor(kernel=kernel)
-        self.gprY = GaussianProcessRegressor(kernel=kernel)
+        self.gprX = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=5)
+        self.gprY = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=5)
 
         self.X = []
         self.Yx = []
@@ -112,10 +115,20 @@ class LearningModule:
         print("GP Learning Complete!")
         print("r^2 are " + str(self.gprX.score(X, Yx)) + " and " + str(self.gprY.score(X, Yy)) )
 
+        
+        a = np.linspace( np.min(X), np.max(X))
+        
+        e = self.gprX.predict(a.reshape(-1,1))
+        
+        #plt.figure()
+        #plt.plot(X, Yx, 'kx')
+        #plt.plot(a, e, '-r')
+        #plt.show()
+
         #plot the velocity error versus time
-        plt.figure()
-        plt.plot(time, vx, time, a0*freq*np.cos(alpha))
-        plt.show()
+        #plt.figure()
+        #plt.plot(time, vx, time, a0*freq*np.cos(alpha))
+        #plt.show()
 
 
         self.X = X; self.Yx = Yx; self.Yy = Yy
@@ -146,6 +159,7 @@ class LearningModule:
         plt.title('X Axis Learning')
         plt.xlabel("alpha")
         plt.ylabel("V_e^x")
+
 
         #plot what the GP looks like for y velocity
         plt.figure()
@@ -184,11 +198,14 @@ class LearningModule:
         muY = self.gprY.predict(alpha_d.reshape(1,-1))
 
 
-
         #select the initial alpha guess as atan2 of v_d - v_error
-        x0 = math.atan2(vd[1] - muY, vd[0] - muX)
+        x0 = math.atan2(vd[1] + muY, vd[0] + muX)
         
-        result = minimize(objective, x0, args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi)])
+        
+        #result = minimize(objective, alpha_d, method='Powell', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi)])
+
+        result = minimize_scalar(objective, method='Bounded', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[-np.pi, np.pi] )
+
 
         alpha = np.array(result.x)
 
