@@ -10,6 +10,7 @@ from MR_simulator import Simulator
 from matplotlib import animation
 import matplotlib.pyplot as plt
 import gym 
+from typing import List
 
 """
 TODO :
@@ -18,23 +19,36 @@ TODO :
 
 """
 class MR_Env(Env):
-    def __init__(self, type='continuous', action_dim = 2):
+    def __init__(self, type = 'continuous', action_dim = 2):
         self.type = type
         self.action_dim = action_dim
         # assert type == 'continuous' or type == 'discrete', 'type must be continuous or discrete'
         # assert action_dim > 0 and action_dim <=2, 'action_dim must be 1 or 2'
-        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([20, np.pi*2]))
-        self.observation_space = spaces.Box(low=np.array([-5000,  -5000,-5000,  -5000, 00]), high=np.array([5000, 5000, 5000, 5000,80000])) # x,y,x_target,y_target,distance
-        self.init_space = spaces.Box(low=np.array([100, 100]), high=np.array([120, 120]))
-        self.init_goal_space = spaces.Box(low=np.array([-31, -31]), high=np.array([-32, -32]))
+        self.action_space = spaces.Box(
+            low = np.array([0, 0]), 
+            high = np.array([20, np.pi*2]))
+        self.observation_space = spaces.Box(
+            low = np.array([-5000, -5000, -5000, -5000, 0]), 
+            high = np.array([5000, 5000, 5000, 5000, 80000])) # x,y,x_target,y_target,distance
+        # Why these numbers?
+        self.init_space = spaces.Box(
+            low = np.array([100, 100]), 
+            high = np.array([120, 120]))
+        self.init_goal_space = spaces.Box(
+            low = np.array([-31, -31]), 
+            high = np.array([-32, -32]))
         self.MR_data = None
         self.name_experiment = None
         self.last_pos = np.zeros(2)
-        self.last_action = np.zeros(self.action_dim)
         self.init_goal = np.zeros(2)
+        self.last_action = np.zeros(self.action_dim)
         self.simulator = Simulator()
         self.number_loop = 0  # loops in the screen -> used to plot
-        self.borders = [ [-510, 510],[-510, -510], [510,-510], [510, 510]]
+        self.borders = [
+            [-510, 510],
+            [-510, -510], 
+            [510,-510], 
+            [510, 510]]
         self.viewer = None
         self.test_performance = False
         # self.init_test_performance = np.linspace(0, np.pi / 15, 10)
@@ -43,31 +57,40 @@ class MR_Env(Env):
         self.min_dist2goal = 30
         self.state_prime = None
 
-    def step(self, action):
+    def step(self, action: List[float]):
+        """
+        Returns:
+            obs (object): an environment-specific object representing your observation of the environment: [x, y, x_target, y_target, distance to target]
+            reward (float) : amount of reward achieved by the previous action TODO
+            done (boolean): whether it’s time to reset the environment again. Most (but not all) tasks are divided up into well-defined episodes, and done being True indicates the episode has terminated. (For example, perhaps the pole tipped too far, or you lost your last life.)
+            info (dict): TODO
+        """
         # According to the action stace a different kind of action is selected
         # print(action)
         self.counter += 1
-        f_t =  action[0]
+        f_t = action[0]
         alpha_t = action[1]
         state = self.simulator.step(f_t, alpha_t)
         self.state_prime = self.simulator.state_prime
         # convert simulator states into observable states
         obs = self.convert_state(state, self.init_goal) 
-        done = self.end(state=state, obs=obs)
-        rew = 10#self.calculate_reward(obs=obs)
+        done = self.end(state = state, obs = obs)
+        reward = 10 # self.calculate_reward(obs=obs)
 
         self.last_pos = [state[0], state[1]]
         self.last_action = np.array([f_t ,alpha_t])
 
         if self.MR_data is not None:
-            self.MR_data.new_transition(state, obs, self.last_action, rew)
+            self.MR_data.new_transition(state, obs, self.last_action, reward)
         info = dict()
         
-        return obs, rew, done, info
+        return obs, reward, done, info
     
     def convert_state(self, state,goal_loc):
         """
         This method generated the features used to build the reward function
+        Returns:
+            obs (object): an environment-specific object representing your observation of the environment: [x, y, x_target, y_target, distance to target]
         """
         x,y,goal_x,goal_y  = state[0], state[1], goal_loc[0], goal_loc[1]
         cur_loc = np.array((x,y))
