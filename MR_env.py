@@ -62,8 +62,7 @@ class MR_Env(Env):
         Returns:
             obs (object): an environment-specific object representing your observation of the environment: [x, y, x_target, y_target, distance to target]
             reward (float) : amount of reward achieved by the previous action TODO
-            done (boolean): whether it’s time to reset the environment again. Most (but not all) tasks are divided up into well-defined episodes, and done being True indicates the episode has terminated. (For example, perhaps the pole tipped too far, or you lost your last life.)
-            info (dict): TODO
+            done (boolean): whether it’s time to reset the environment again.
         """
         # According to the action stace a different kind of action is selected
         # print(action)
@@ -82,9 +81,8 @@ class MR_Env(Env):
 
         if self.MR_data is not None:
             self.MR_data.new_transition(state, obs, self.last_action, reward)
-        info = dict()
         
-        return obs, reward, done, info
+        return obs, reward, done
     
     def convert_state(self, state,goal_loc):
         """
@@ -219,7 +217,7 @@ if __name__ == '__main__':
                 frames.append(env.render())
                 # env.render()
                 action = np.array([20, np.pi/4]) # -2*np.pi/(i_episode+1)
-                observation, reward, done, info = env.step(action)
+                observation, reward, done = env.step(action)
                 
                 # print ("observation, reward, done, info \n")
                 # print (observation)

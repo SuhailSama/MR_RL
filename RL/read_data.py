@@ -75,7 +75,7 @@ for t in range(T):
         # print("cur_pos : ",pt.round(decimals=1),", dist : ",round(distance,2) , 
         #       ", alpha : ", round(np.rad2deg(alpha)), ", Moving to node # ",
         #       nearest_node.round(decimals=1))
-        observation, reward, done, info = env.step(action)
+        observation, reward, done = env.step(action)
         pt = observation[:2]
         xy_model = np.append(xy_model,np.array([pt]) , axis=0)
         distance = ((pt[0] - nearest_node[0] )**2 + (pt[1] - nearest_node[1])**2)**0.5
