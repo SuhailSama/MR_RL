@@ -10,7 +10,7 @@ from MR_simulator import Simulator
 from matplotlib import animation
 import matplotlib.pyplot as plt
 import gym 
-from typing import List
+from typing import List, Tuple
 
 """
 TODO :
@@ -19,7 +19,7 @@ TODO :
 
 """
 class MR_Env(Env):
-    def __init__(self, type = 'continuous', action_dim = 2):
+    def __init__(self, type: str = 'continuous', action_dim: int = 2):
         self.type = type
         self.action_dim = action_dim
         # assert type == 'continuous' or type == 'discrete', 'type must be continuous or discrete'
@@ -39,7 +39,7 @@ class MR_Env(Env):
             high = np.array([-32, -32]))
         self.MR_data = None
         self.name_experiment = None
-        self.last_pos = np.zeros(2)
+        self.last_loc = np.zeros(2)
         self.init_goal = np.zeros(2)
         self.last_action = np.zeros(self.action_dim)
         self.simulator = Simulator()
@@ -55,28 +55,26 @@ class MR_Env(Env):
         self.counter = 0
         self.max_timesteps = 50
         self.min_dist2goal = 30
-        self.state_prime = None
 
-    def step(self, action: List[float]):
+    def step(self, action: List[float]) -> Tuple[List[float], float, bool]:
         """
         Returns:
             obs (object): an environment-specific object representing your observation of the environment: [x, y, x_target, y_target, distance to target]
             reward (float) : amount of reward achieved by the previous action TODO
             done (boolean): whether it’s time to reset the environment again.
         """
-        # According to the action stace a different kind of action is selected
-        # print(action)
+        # According to the action state a different kind of action is selected
         self.counter += 1
         f_t = action[0]
         alpha_t = action[1]
         state = self.simulator.step(f_t, alpha_t)
-        self.state_prime = self.simulator.state_prime
-        # convert simulator states into observable states
-        obs = self.convert_state(state, self.init_goal) 
-        done = self.end(state = state, obs = obs)
+
+        obs = self.convert_state_to_observable(state, self.init_goal) 
+        done = self.should_end(obs = obs)
+        # WHY? TODO
         reward = 10 # self.calculate_reward(obs=obs)
 
-        self.last_pos = [state[0], state[1]]
+        self.last_loc = [state[0], state[1]]
         self.last_action = np.array([f_t ,alpha_t])
 
         if self.MR_data is not None:
@@ -84,13 +82,14 @@ class MR_Env(Env):
         
         return obs, reward, done
     
-    def convert_state(self, state,goal_loc):
+    def convert_state_to_observable(self, state, goal_loc):
         """
-        This method generated the features used to build the reward function
+        This method generates the features used to build the reward function, converts the current state to the observable state
         Returns:
             obs (object): an environment-specific object representing your observation of the environment: [x, y, x_target, y_target, distance to target]
         """
-        x,y,goal_x,goal_y  = state[0], state[1], goal_loc[0], goal_loc[1]
+        x, y, goal_x, goal_y  = state[0], state[1], goal_loc[0], goal_loc[1]
+        
         cur_loc = np.array((x,y))
         goal_loc = np.array((goal_x,goal_y))
         d = np.linalg.norm( goal_loc - cur_loc )
@@ -107,7 +106,7 @@ class MR_Env(Env):
         else:
             return -0.1# self.min_dist2goal/d
 
-    def end(self, state, obs):
+    def should_end(self, obs):
         """
         ? This method finds out whether we are at the end of episode
         """
@@ -148,18 +147,18 @@ class MR_Env(Env):
         self.goal_loc = self.init_space.sample()
         self.simulator.is_mismatched = is_mismatched
         
-        self.last_pos = init
+        self.last_loc = init
         self.counter = 0
         # print('Reseting position')
-        # print( "goal_loc ", self.goal_loc ,"init_pos",self.last_pos)
+        # print( "goal_loc ", self.goal_loc ,"init_pos",self.last_loc)
         state = self.simulator.get_state()
         if self.MR_data is not None:
             if self.MR_data.iterations > 0:
                 self.MR_data.save_experiment(self.name_experiment)
-            self.MR_data.new_iter(state, self.convert_state(state,self.init_goal), np.zeros(len(self.last_action)), np.array([0]))
+            self.MR_data.new_iter(state, self.convert_state_to_observable(state,self.init_goal), np.zeros(len(self.last_action)), np.array([0]))
         if self.viewer is not None:
             self.viewer.end_episode()
-        return self.convert_state(state,self.init_goal)
+        return self.convert_state_to_observable(state,self.init_goal)
 
     def render(self, mode='human'):
         if self.viewer is None:
@@ -168,12 +167,12 @@ class MR_Env(Env):
             
         if 1 > self.number_loop: # ??
             self.viewer.end_episode()
-            self.viewer.plot_position(self.last_pos[0], self.last_pos[1])
+            self.viewer.plot_position(self.last_loc[0], self.last_loc[1])
             self.viewer.restart_plot()
             self.number_loop += 1
         else:
             self.viewer.plot_goal( self.init_goal, 2)
-            self.viewer.plot_position(self.last_pos[0], self.last_pos[1])
+            self.viewer.plot_position(self.last_loc[0], self.last_loc[1])
             self.viewer.end_episode()
             self.viewer.restart_plot()
 

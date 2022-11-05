@@ -46,11 +46,11 @@ def run_sim(actions,init_pos=None,noise_var = 1,a0 =1, is_mismatched = False):
     env         = MR_Env()
     state       = env.reset(init = init_pos,noise_var = noise_var,a0=a0, is_mismatched = is_mismatched)
     # init
-    # states      = np.append(states, env.last_pos, axis=0)
+    # states      = np.append(states, env.last_loc, axis=0)
     # state_prime = np.append(state_prime, np.array([0,0]), axis=0)
     for action in actions:
         env.step(action)
-        states      = np.append(states, np.array([env.last_pos]), axis=0)
+        states      = np.append(states, np.array([env.last_loc]), axis=0)
         state_prime = np.append(state_prime, np.array([env.state_prime]), axis=0)
     X      = states[:,0]
     Y      = states[:,1]
