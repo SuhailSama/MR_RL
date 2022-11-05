@@ -12,6 +12,10 @@ import matplotlib.pyplot as plt
 import gym 
 from typing import List, Tuple
 
+REWARD_SUCCESS = 100
+REWARD_FAILURE = -100
+REWARD_STEP = -0.1
+
 """
 TODO :
 - Reward Function w/logical specs?
@@ -60,7 +64,6 @@ class MR_Env(Env):
         """
         Returns:
             obs (object): an environment-specific object representing your observation of the environment: [x, y, x_target, y_target, distance to target]
-            reward (float) : amount of reward achieved by the previous action TODO
             done (boolean): whether it’s time to reset the environment again.
         """
         # According to the action state a different kind of action is selected
@@ -71,18 +74,18 @@ class MR_Env(Env):
 
         obs = self.convert_state_to_observable(state, self.init_goal) 
         done = self.should_end(obs = obs)
-        # WHY? TODO
-        reward = 10 # self.calculate_reward(obs=obs)
 
         self.last_loc = [state[0], state[1]]
         self.last_action = np.array([f_t ,alpha_t])
 
         if self.MR_data is not None:
+            # WHY? TODO
+            reward = 10 # self.calculate_reward(obs=obs)
             self.MR_data.new_transition(state, obs, self.last_action, reward)
         
-        return obs, reward, done
+        return obs, done
     
-    def convert_state_to_observable(self, state, goal_loc):
+    def convert_state_to_observable(self, state: List[float, float], goal_loc: List[float, float]) -> List[float, float, float, float, float]:
         """
         This method generates the features used to build the reward function, converts the current state to the observable state
         Returns:
@@ -93,20 +96,26 @@ class MR_Env(Env):
         cur_loc = np.array((x,y))
         goal_loc = np.array((goal_x,goal_y))
         d = np.linalg.norm( goal_loc - cur_loc )
-        obs = np.array([x,y, goal_x,goal_y ,d])
+        obs = np.array([x, y, goal_x, goal_y ,d])
+
         return obs
 
-    def calculate_reward(self, obs):
-        x, y, d = obs[0], obs[1], obs[4]
-        if d < self.min_dist2goal   :
+    def calculate_reward(self, obs: List[float, float, float, float, float]) -> float:
+        """
+        This method calculates the reward based on the observable state
+        Returns:
+            reward (float) : amount of reward achieved by the previous action
+        """
+        d = obs[4]
+        if d < self.min_dist2goal:
             print("\n ############ Got there ########")
-            return 100
+            return REWARD_SUCCESS
         elif not self.observation_space.contains(obs) or self.counter > self.max_timesteps:
-            return -100
+            return REWARD_FAILURE
         else:
-            return -0.1# self.min_dist2goal/d
+            return REWARD_STEP # self.min_dist2goal/d
 
-    def should_end(self, obs):
+    def should_end(self, obs: List[float, float, float, float, float]) -> bool:
         """
         ? This method finds out whether we are at the end of episode
         """
@@ -119,7 +128,7 @@ class MR_Env(Env):
                 if self.MR_data.iterations > 0:
                     self.MR_data.save_experiment(self.name_experiment)
             return True
-        elif d < self.min_dist2goal   :
+        elif d < self.min_dist2goal:
             return True
         else:
             return False
@@ -216,9 +225,9 @@ if __name__ == '__main__':
                 frames.append(env.render())
                 # env.render()
                 action = np.array([20, np.pi/4]) # -2*np.pi/(i_episode+1)
-                observation, reward, done = env.step(action)
+                observation, done = env.step(action)
                 
-                # print ("observation, reward, done, info \n")
+                # print ("observation, done, info \n")
                 # print (observation)
                 if done:
                     print("Episode finished after {} timesteps".format(t + 1))
