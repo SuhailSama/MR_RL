@@ -1,16 +1,16 @@
 #!/usr/bin/python
 #-*- coding: utf-8 -*-
 
-from gym import Env, spaces
 import numpy as np
-from shapely.geometry import LineString, Point
+import matplotlib.pyplot as plt
+
+from gym import Env, spaces
+from matplotlib import animation
+from typing import List, Tuple
+
 from MR_viewer import Viewer
 from MR_data import MRExperiment
 from MR_simulator import Simulator
-from matplotlib import animation
-import matplotlib.pyplot as plt
-import gym 
-from typing import List, Tuple
 
 REWARD_SUCCESS = 100
 REWARD_FAILURE = -100
