@@ -68,12 +68,13 @@ class MR_Env(Env):
         self.name_experiment = None
         self.viewer = None
         self.test_performance = False
+        self.state_prime = None
         # self.init_test_performance = np.linspace(0, np.pi / 15, 10)
 
     def step(
             self, 
-            action: List[float]
-            ) -> Tuple[List[float], float, bool]:
+            action: Tuple[float, float]
+            ) -> Tuple[Tuple[float, float, float, float, float], bool]:
         """
         Returns:
             obs (object): an environment-specific object representing your observation of the environment: [x, y, x_target, y_target, distance to target]
@@ -84,6 +85,7 @@ class MR_Env(Env):
         f_t = action[0]
         alpha_t = action[1]
         state = self.simulator.step(f_t, alpha_t)
+        self.state_prime = self.simulator.state_prime
 
         obs = self.convert_state_to_observable(state, self.init_goal) 
         done = self.should_end(obs = obs)
@@ -100,9 +102,9 @@ class MR_Env(Env):
     
     def convert_state_to_observable(
                                     self, 
-                                    state: List[float, float], 
-                                    goal_loc: List[float, float]
-                                    ) -> List[float, float, float, float, float]:
+                                    state: Tuple[float, float], 
+                                    goal_loc: Tuple[float, float]
+                                    ) -> Tuple[float, float, float, float, float]:
         """
         This method generates the features used to build the reward function, converts the current state to the observable state
         Returns:
@@ -119,7 +121,7 @@ class MR_Env(Env):
 
     def calculate_reward(
                         self, 
-                        obs: List[float, float, float, float, float]
+                        obs: Tuple[float, float, float, float, float]
                         ) -> float:
         """
         This method calculates the reward based on the observable state
@@ -137,7 +139,7 @@ class MR_Env(Env):
 
     def should_end(
                 self, 
-                obs: List[float, float, float, float, float]
+                obs: Tuple[float, float, float, float, float]
                 ) -> bool:
         """
         ? This method finds out whether we are at the end of episode
@@ -171,11 +173,11 @@ class MR_Env(Env):
 
     def reset(
             self, 
-            init: List[float, float] = None, 
+            init: Tuple[float, float] = None, 
             noise_var = 1, 
             a0 = 1, 
             is_mismatched = False
-            ) -> List[float, float, float, float, float]:
+            ) -> Tuple[float, float, float, float, float]:
 
         if init is None: 
             init = self.init_space.sample()
