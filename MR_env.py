@@ -23,11 +23,18 @@ TODO :
 
 """
 class MR_Env(Env):
-    def __init__(self, type: str = 'continuous', action_dim: int = 2):
+    def __init__(
+                self, 
+                type = 'continuous', 
+                action_dim = 2
+                ):
+
         self.type = type
         self.action_dim = action_dim
+
         # assert type == 'continuous' or type == 'discrete', 'type must be continuous or discrete'
         # assert action_dim > 0 and action_dim <=2, 'action_dim must be 1 or 2'
+        
         self.action_space = spaces.Box(
             low = np.array([0, 0]), 
             high = np.array([20, np.pi*2]))
@@ -41,26 +48,32 @@ class MR_Env(Env):
         self.init_goal_space = spaces.Box(
             low = np.array([-31, -31]), 
             high = np.array([-32, -32]))
-        self.MR_data = None
-        self.name_experiment = None
-        self.last_loc = np.zeros(2)
-        self.init_goal = np.zeros(2)
-        self.last_action = np.zeros(self.action_dim)
-        self.simulator = Simulator()
-        self.number_loop = 0  # loops in the screen -> used to plot
         self.borders = [
             [-510, 510],
             [-510, -510], 
             [510,-510], 
             [510, 510]]
-        self.viewer = None
-        self.test_performance = False
-        # self.init_test_performance = np.linspace(0, np.pi / 15, 10)
+        
+        self.simulator = Simulator()
+        
+        self.last_loc = np.zeros(2)
+        self.init_goal = np.zeros(2)
+        self.last_action = np.zeros(self.action_dim)
+        self.number_loop = 0  # loops in the screen -> used to plot
         self.counter = 0
         self.max_timesteps = 50
         self.min_dist2goal = 30
+        
+        self.MR_data = None
+        self.name_experiment = None
+        self.viewer = None
+        self.test_performance = False
+        # self.init_test_performance = np.linspace(0, np.pi / 15, 10)
 
-    def step(self, action: List[float]) -> Tuple[List[float], float, bool]:
+    def step(
+            self, 
+            action: List[float]
+            ) -> Tuple[List[float], float, bool]:
         """
         Returns:
             obs (object): an environment-specific object representing your observation of the environment: [x, y, x_target, y_target, distance to target]
@@ -85,7 +98,11 @@ class MR_Env(Env):
         
         return obs, done
     
-    def convert_state_to_observable(self, state: List[float, float], goal_loc: List[float, float]) -> List[float, float, float, float, float]:
+    def convert_state_to_observable(
+                                    self, 
+                                    state: List[float, float], 
+                                    goal_loc: List[float, float]
+                                    ) -> List[float, float, float, float, float]:
         """
         This method generates the features used to build the reward function, converts the current state to the observable state
         Returns:
@@ -100,7 +117,10 @@ class MR_Env(Env):
 
         return obs
 
-    def calculate_reward(self, obs: List[float, float, float, float, float]) -> float:
+    def calculate_reward(
+                        self, 
+                        obs: List[float, float, float, float, float]
+                        ) -> float:
         """
         This method calculates the reward based on the observable state
         Returns:
@@ -115,7 +135,10 @@ class MR_Env(Env):
         else:
             return REWARD_STEP # self.min_dist2goal/d
 
-    def should_end(self, obs: List[float, float, float, float, float]) -> bool:
+    def should_end(
+                self, 
+                obs: List[float, float, float, float, float]
+                ) -> bool:
         """
         ? This method finds out whether we are at the end of episode
         """
@@ -133,59 +156,90 @@ class MR_Env(Env):
         else:
             return False
 
-    def set_goal(self,init):
+    def set_goal(
+                self, 
+                init
+                ):
+        """
+        Needs to be changed??TODO
+        """
         # self.init_goal = self.init_goal_space.sample()
         # while np.linalg.norm( self.init_goal - init ) < self.min_dist2goal :
         #     self.init_goal = self.init_space.sample()
         #     # print("uh")
         return self.init_goal
 
-    def reset(self, init = None,noise_var = 1,a0=1, is_mismatched=False):
+    def reset(
+            self, 
+            init: List[float, float] = None, 
+            noise_var = 1, 
+            a0 = 1, 
+            is_mismatched = False
+            ) -> List[float, float, float, float, float]:
+
         if init is None: 
             init = self.init_space.sample()
             
         print("starting positions")
         print(init.shape)
         self.set_goal(init)
+        # Why these variables are not set at the init of the class? TODO
+        # Because at the first iteration we are learning without noise?
         self.simulator.noise_var = noise_var
         self.simulator.a0 = a0
         self.simulator.reset_start_pos(init)
-        self.goal_loc = self.init_space.sample()
         self.simulator.is_mismatched = is_mismatched
         
         self.last_loc = init
         self.counter = 0
         # print('Reseting position')
-        # print( "goal_loc ", self.goal_loc ,"init_pos",self.last_loc)
+        # print( "goal_loc ", init ,"init_pos",self.last_loc)
         state = self.simulator.get_state()
         if self.MR_data is not None:
             if self.MR_data.iterations > 0:
                 self.MR_data.save_experiment(self.name_experiment)
-            self.MR_data.new_iter(state, self.convert_state_to_observable(state,self.init_goal), np.zeros(len(self.last_action)), np.array([0]))
+            self.MR_data.new_iter(
+                                state, 
+                                self.convert_state_to_observable(state,self.init_goal), 
+                                np.zeros(len(self.last_action)), 
+                                np.array([0])
+                                )
         if self.viewer is not None:
             self.viewer.end_episode()
-        return self.convert_state_to_observable(state,self.init_goal)
 
-    def render(self, mode='human'):
-        if self.viewer is None:
-            self.viewer = Viewer()
-            self.viewer.plot_boundary(self.borders)
-            
-        if 1 > self.number_loop: # ??
-            self.viewer.end_episode()
-            self.viewer.plot_position(self.last_loc[0], self.last_loc[1])
-            self.viewer.restart_plot()
-            self.number_loop += 1
-        else:
-            self.viewer.plot_goal( self.init_goal, 2)
-            self.viewer.plot_position(self.last_loc[0], self.last_loc[1])
-            self.viewer.end_episode()
-            self.viewer.restart_plot()
+        return self.convert_state_to_observable(
+                                            state, 
+                                            self.init_goal
+                                            )
+
+    def render(
+            self, 
+            mode = 'human'
+            ) -> None:
+        """
+        Renders the environment if the mode is 'human'
+        """
+        if mode == 'human':
+            if self.viewer is None:
+                self.viewer = Viewer()
+                self.viewer.plot_boundary(self.borders)
+                
+            if self.number_loop == 0:
+                self.viewer.end_episode()
+                self.viewer.plot_position(self.last_loc[0], self.last_loc[1])
+                self.viewer.restart_plot()
+                self.number_loop += 1
+            else:
+                self.viewer.plot_goal( self.init_goal, 2)
+                self.viewer.plot_position(self.last_loc[0], self.last_loc[1])
+                self.viewer.end_episode()
+                self.viewer.restart_plot()
 
 
-    def close(self, ):
+    def close(self) -> None:
         self.viewer.freeze_scream()
 
+    # Unnecessary and unused
     def set_save_experice(self, name='experiment_ssn_ddpg_10iter'):
         assert type(name) == type(""), 'name must be a string'
         self.MR_data = MRExperiment()
@@ -195,10 +249,19 @@ class MR_Env(Env):
         self.test_performance = True
 
 
-def save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
+def save_frames_as_gif(
+                    frames: List[np.ndarray], 
+                    path='./', 
+                    filename='gym_animation.gif'
+                    ) -> None:
 
         #Mess with this to change frame size
-        plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
+        plt.figure(
+                    figsize =(
+                            frames[0].shape[1] / 72.0, 
+                            frames[0].shape[0] / 72.0 ), 
+                    dpi = 72
+                    )
 
         patch = plt.imshow(frames[0])
         plt.axis('off')
@@ -206,8 +269,15 @@ def save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
         def animate(i):
             patch.set_data(frames[i])
 
-        anim = animation.FuncAnimation(plt.gcf(), animate, frames = len(frames), interval=50)
-        anim.save(path + filename, writer='imagemagick', fps=60)
+        anim = animation.FuncAnimation(
+                                    plt.gcf(), 
+                                    animate, 
+                                    frames = len(frames), 
+                                    interval=50)
+        anim.save(
+                path + filename, 
+                writer = 'imagemagick', 
+                fps = 60)
 
 if __name__ == '__main__':
     frames = []
