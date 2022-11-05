@@ -133,9 +133,6 @@ class MR_Env(Env):
         else:
             return False
 
-    def set_init_space(self, low, high):
-        self.init_space = spaces.Box(low=np.array(low), high=np.array(high))
-
     def set_goal(self,init):
         # self.init_goal = self.init_goal_space.sample()
         # while np.linalg.norm( self.init_goal - init ) < self.min_dist2goal :
