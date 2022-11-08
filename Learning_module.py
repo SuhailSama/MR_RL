@@ -8,13 +8,16 @@ from scipy.optimize import minimize, minimize_scalar
 
 
 
-def objective(alpha, a0, freq, v_d, GPx, GPy):
+def objective(X, a0, v_d, GPx, GPy):
 
     
-    alpha = np.array(alpha)
-
-    mux = GPx.predict(alpha.reshape(1,-1))
-    muy = GPy.predict(alpha.reshape(1,-1))
+    alpha = X[0]
+    freq  = X[1]
+    
+    X = np.array([alpha, freq]).transpose()
+    
+    mux = GPx.predict(X.reshape(1, -1))
+    muy = GPy.predict(X.reshape(1, -1))
 
 
     #return (a0*freq*np.cos(alpha) + mux - v_d[0])**2 + (a0*freq*np.sin(alpha) + mux - v_d[1])**2
@@ -85,6 +88,7 @@ class LearningModule:
         if len(todel) > 0:
             todel = int(todel[0])
             alpha = alpha[0:todel-1]
+            freq  = freq[0:todel-1]
             px = px[0:todel-1]
             py = py[0:todel-1]
             vx = vx[0:todel-1]
@@ -94,6 +98,7 @@ class LearningModule:
 
         #smoothing creates a boundary effect -- let's remove it
         alpha = alpha[N:-N]
+        freq = freq[N:-N]
         px = px[N:-N]
         py = py[N:-N]
         vx = vx[N:-N]
@@ -101,10 +106,13 @@ class LearningModule:
         time = time[N:-N]
         speed = speed[N:-N]
 
-        a0 = np.median(speed) / freq 
+        a0 = np.median(speed / freq)
 
         #generate empty NP arrays for X (data) and Y (outputs)
-        X = alpha.reshape(-1,1)
+        #X = alpha.reshape(-1,1)
+        
+        X = np.vstack( [alpha, freq] ).transpose()
+                
         #v_e = v_actual - v_desired = v - a0*f*[ cos alpha; sin alpha]
         Yx = vx - a0 * freq * np.cos(alpha)
         Yy = vy - a0 * freq * np.sin(alpha)
@@ -117,8 +125,11 @@ class LearningModule:
 
         
         a = np.linspace( np.min(X), np.max(X))
+        f = np.zeros(a.shape) + freq[0]
         
-        e = self.gprX.predict(a.reshape(-1,1))
+        Xe = np.vstack( [a, f] ).transpose()
+        
+        e = self.gprX.predict(Xe)
         
         #plt.figure()
         #plt.plot(X, Yx, 'kx')
@@ -141,79 +152,120 @@ class LearningModule:
 
     def visualize(self):
 
-        alpha_range = np.linspace( np.min(self.X), np.max(self.X), 200 )
+        alpha_range = np.linspace( np.min(self.X[:,0]), np.max(self.X[:,0]), 200 )
+        freq_range  = np.linspace( np.min(self.X[:,1]), np.max(self.X[:,1]), 200 )
+        
+        
+        alpha,freq = np.meshgrid(alpha_range, freq_range)
+        
+        print(alpha.shape)
+        print(freq.shape)
+
+        alpha_flat = np.ndarray.flatten(alpha)
+        freq_flat = np.ndarray.flatten(freq)
+        
+        print(alpha_flat.shape)
+        print(freq_flat.shape)
+
+
+        X = np.vstack( [alpha_flat, freq_flat] ).transpose()
 
         #evaluate the GPs
-        muX,sigX = self.gprX.predict(alpha_range.reshape(-1, 1), return_std=True)
-        muY,sigY = self.gprY.predict(alpha_range.reshape(-1, 1), return_std=True)
+        muX,sigX = self.gprX.predict(X, return_std=True)
+        muY,sigY = self.gprY.predict(X, return_std=True)
 
         #plot what the GP looks like for x velocity
         plt.figure()
+        plt.contourf(alpha, freq, np.reshape(sigX, alpha.shape ))
+        plt.xlabel('alpha')
+        plt.ylabel('f')
+        plt.title('X Velocity Uncertainty')
+        plt.colorbar()
+        
+        plt.plot(self.X[:,0], self.X[:,1], 'kx')
+        
+        plt.show()
+        
+        #plot what the GP looks like for y velocity
+        plt.figure()
+        plt.contourf(alpha, freq, np.reshape(sigY, alpha.shape ))
+        plt.xlabel('alpha')
+        plt.ylabel('f')
+        plt.title('Y Velocity Uncertainty')
+        plt.colorbar()
+        
+        plt.plot(self.X[:,0], self.X[:,1], 'kx')
+
+        plt.show()
+        
         #plot pm 2 stdev
-        plt.fill_between(alpha_range,  muX - 2*sigX,  muX + 2*sigX)
-        plt.fill_between(alpha_range,  muX - sigX,  muX + sigX)
+        #plt.fill_between(alpha_range,  muX - 2*sigX,  muX + 2*sigX)
+        #plt.fill_between(alpha_range,  muX - sigX,  muX + sigX)
         #plot the data
-        plt.plot(self.X, self.Yx, 'xk')
+        #plt.plot(self.X[:,0], self.Yx, 'xk')
         #plot the approximate function
-        plt.plot(alpha_range, muX, 'g')
-        plt.title('X Axis Learning')
-        plt.xlabel("alpha")
-        plt.ylabel("V_e^x")
+        #plt.plot(alpha_range, muX, 'g')
+        #plt.title('X Axis Learning')
+        #plt.xlabel("alpha")
+        #plt.ylabel("V_e^x")
 
 
         #plot what the GP looks like for y velocity
-        plt.figure()
+        #plt.figure()
         #plot pm 2 stdev
-        plt.fill_between(alpha_range,  muY - 2*sigY,  muY + 2*sigY)
-        plt.fill_between(alpha_range,  muY - sigY,  muY + sigY)
+        #plt.fill_between(alpha_range,  muY - 2*sigY,  muY + 2*sigY)
+        #plt.fill_between(alpha_range,  muY - sigY,  muY + sigY)
         #plot the data
-        plt.plot(self.X, self.Yy, 'xk')
+        #plt.plot(self.X[:,0], self.Yy, 'xk')
         #plot the approximate function
-        plt.plot(alpha_range, muY, 'g')
-        plt.title('Y Axis Learning')
-        plt.xlabel("alpha")
-        plt.ylabel("V_e^x")
+        #plt.plot(alpha_range, muY, 'g')
+        #plt.title('Y Axis Learning')
+        #plt.xlabel("alpha")
+        #plt.ylabel("V_e^x")
         
-
-        plt.show()
-
 
     def error(self, vd):
         #alpha desired comes from arctan of desired velocity
         alpha_d = np.array(math.atan2(vd[1], vd[0]))
-
+        f_d = np.linalg.norm(vd) / self.a0
+        
+        X = np.array([alpha_d, f_d])
+         
         #estimate the uncertainty for the desired alpha
-        muX,sigX = self.gprX.predict(alpha_d.reshape(1,-1), return_std=True)
-        muY,sigY = self.gprY.predict(alpha_d.reshape(1,-1), return_std=True)
+        muX,sigX = self.gprX.predict(X.reshape(1,-1), return_std=True)
+        muY,sigY = self.gprY.predict(X.reshape(1,-1), return_std=True)
 
         return muX, muY, sigX, sigY
 
     def predict(self, vd):
-
         #alpha desired comes from arctan of desired velocity
         alpha_d = np.array(math.atan2(vd[1], vd[0]))
+        f_d = np.linalg.norm(vd) / self.a0
+
+        X = np.array([alpha_d, f_d])
+        
 
         #estimate the uncertainty for the desired alpha
-        muX = self.gprX.predict(alpha_d.reshape(1,-1))
-        muY = self.gprY.predict(alpha_d.reshape(1,-1))
+        muX = self.gprX.predict(X.reshape(1,-1))
+        muY = self.gprY.predict(X.reshape(1,-1))
 
 
         #select the initial alpha guess as atan2 of v_d - v_error
-        x0 = math.atan2(vd[1] + muY, vd[0] + muX)
+        x0 = np.hstack( [alpha_d, f_d] )
         
         
-        #result = minimize(objective, alpha_d, method='Powell', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi)])
+        result = minimize(objective, x0, args=(self.a0, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi), (0, 5)])
 
-        result = minimize_scalar(objective, method='Bounded', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[-np.pi, np.pi] )
+        #result = minimize_scalar(objective, method='Bounded', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[-np.pi, np.pi] )
 
 
-        alpha = np.array(result.x)
+        X = np.array(result.x)
 
         #generate the uncertainty for the new alpha we're sending
-        muX,sigX = self.gprX.predict(alpha.reshape(1,-1), return_std=True)
-        muY,sigY = self.gprY.predict(alpha.reshape(1,-1), return_std=True)
+        muX,sigX = self.gprX.predict(X.reshape(1,-1), return_std=True)
+        muY,sigY = self.gprY.predict(X.reshape(1,-1), return_std=True)
 
-        return alpha, muX, muY, sigX, sigY
+        return X, muX, muY, sigX, sigY
 
     '''
     #get bounds on learning - 2stdv ~= 95% of data

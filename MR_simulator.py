@@ -34,7 +34,7 @@ class Simulator:
 
 
     def a0_linear(self, alpha_t, f_t, sigma):
-        return self.a0 + (alpha_t/np.pi)*0.4 + np.random.normal(0, sigma, 1)[0]
+        return self.a0 + (f_t/4)*0.8 + np.random.normal(0, sigma, 1)[0]
 
     def simulate(self, t, states):
         """
@@ -54,7 +54,7 @@ class Simulator:
         #select a value of a0 -- either costant or with model mismatch
         a0 = self.a0
         if self.is_mismatched:
-            #a0 = self.a0_linear(alpha_t, f_t, sigma/4)
+            a0 = self.a0_linear(alpha_t, f_t, sigma/4)
             dx1 = a0 * f_t  * np.cos(alpha_t + 0.1) + np.random.normal(mu, sigma, 1)[0] + 0.2
             dx2 = a0 * f_t  * np.sin(alpha_t + 0.1) + np.random.normal(mu, sigma, 1)[0] - 0.1
         else:

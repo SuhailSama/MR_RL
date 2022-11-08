@@ -138,6 +138,7 @@ time_steps = 100 #do nothing for 100/30 seconds
 actions_idle = np.zeros((time_steps, 2))
 
 
+
 #note: timestep is 1/30 seconds, the rate we get data at in the experiment
 time_steps = 300 #train for 10s at 30 hz
 cycles = 3 #train my moving in 3 circles
@@ -152,11 +153,14 @@ actions_circle[:,1] = np.linspace(-np.pi, np.pi, steps)
 #stack the circle actions to get our learning set
 actions_learn = np.vstack([actions_circle]*cycles)
 
+t = np.linspace(0, time_steps, time_steps)
+
+actions_learn[:,0] = (np.cos(t / 5) + 1)/2 * 4.9 + 0.1
+
 #generate actions for testing (1/30 hz for 30 seconds)
 time_steps = 1000
 
 actions = np.zeros( (time_steps, 2) )
-actions[:,0] = freq
 
 actions[0:200,1]   = np.linspace(0, np.pi/2, 200)
 actions[200:400,1] = np.linspace(np.pi/2, -np.pi/2, 200)
@@ -164,11 +168,13 @@ actions[400:600,1] = np.linspace(-np.pi/2, 0, 200)
 actions[600:800,1] = np.linspace(0, np.pi/8, 200)
 actions[800::,1]  = np.linspace(np.pi/8, -np.pi, 200)
 
+actions[:,0] = freq # np.linspace(3, 4, time_steps)
+
 #actions = np.array([[1, 0.3*np.pi*((t/time_steps)-1)*(-1)**(t//300)] 
 #                        for t in range(1,time_steps)]) # [T,action_dim]
 
 
-noise_vars= [0.5]
+noise_vars= [0.0]
 for i in range(len(noise_vars)):
 
 
@@ -192,7 +198,7 @@ for i in range(len(noise_vars)):
 
 
     # learn noise and a0 -- note px_desired and py_desired need to be at the same time
-    a0_sim = gp_sim.learn(px_sim, py_sim, alpha_sim, freq, time_sim)
+    a0_sim = gp_sim.learn(px_sim, py_sim, alpha_sim, freq_sim, time_sim)
     print("Estimated a0 value is " + str(a0_sim))
     gp_sim.visualize()
 
@@ -235,8 +241,12 @@ for i in range(len(noise_vars)):
 
     for ii in range(len(actions_corrected)):
         vd[ii,:] = a0_sim*freq*np.array( [np.cos(actions[ii,1]), np.sin(actions[ii,1])] ).reshape(1,-1)
-        actions_corrected[ii,0] = actions[ii,0] #don't correct the rolling frequency
-        actions_corrected[ii,1], muX, muY, sigX, sigY = find_alpha_corrected(vd[ii],gp_sim)
+        #actions_corrected[ii,0] = actions[ii,0] #don't correct the rolling frequency
+        A, muX, muY, sigX, sigY = find_alpha_corrected(vd[ii],gp_sim)
+        
+        actions_corrected[ii,0] = A[1]
+        actions_corrected[ii,1] = A[0]
+        
         #our predicted velocity is model + error
         v_pred[ii,0] = a0_sim*freq*np.cos(actions_corrected[ii,1]) + muX
         v_pred[ii,1] = a0_sim*freq*np.sin(actions_corrected[ii,1]) + muY
@@ -274,12 +284,13 @@ for i in range(len(noise_vars)):
     px_learn = uniform_filter1d(px_learn, N, mode="nearest")
     vx_learn = np.gradient(px_learn, time_learn)
     vy_learn = np.gradient(py_learn, time_learn)
+    vx_learn = uniform_filter1d(vx_learn, (int)(N/2), mode="nearest")
+    vy_learn = uniform_filter1d(vy_learn, (int)(N/2), mode="nearest")
 
     vx_baseline = np.gradient(px_baseline, time_baseline)
     vy_baseline = np.gradient(py_baseline, time_baseline)
-
-    vx_baseline = uniform_filter1d(vx_baseline, 3, mode="nearest")
-    vx_baseline = uniform_filter1d(vx_baseline, 3, mode="nearest")
+    vx_baseline = uniform_filter1d(vx_baseline, (int)(N/2), mode="nearest")
+    vy_baseline = uniform_filter1d(vy_baseline, (int)(N/2), mode="nearest")
 
 
     vx_curve = [(time_learn,      vx_learn),
