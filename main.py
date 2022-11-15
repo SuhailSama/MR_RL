@@ -146,12 +146,12 @@ cycles = 3 #train my moving in 3 circles
 steps = (int)(time_steps / cycles)
 
 #generate actions to move in a circle at a constant frequency
-actions_circle = np.zeros( (steps, 2))
+actions_circle = np.zeros((steps, 2))
 actions_circle[:,0] = freq
 actions_circle[:,1] = np.linspace(-np.pi, np.pi, steps)
 
 #stack the circle actions to get our learning set
-actions_learn = np.vstack([actions_circle]*cycles)
+actions_learn = np.vstack([actions_circle] * cycles)
 
 t = np.linspace(0, time_steps, time_steps)
 
@@ -175,26 +175,28 @@ actions[:,0] = freq # np.linspace(3, 4, time_steps)
 
 
 noise_vars= [0.0]
-for i in range(len(noise_vars)):
+for noise_var in noise_vars:
 
 
     gp_sim = GP.LearningModule()
 
     #first we will do absolutely nothing to try and calculate the drift term
-    px_idle,py_idle,alpha_idle,time_idle,freq_idle = run_sim(actions_idle,
+    px_idle, py_idle, alpha_idle, time_idle, freq_idle = run_sim(actions_idle,
                                                                 init_pos = np.array([0,0]),
-                                                                noise_var = noise_vars[i],
-                                                                a0=a0_def,is_mismatched=True)
+                                                                noise_var = noise_var,
+                                                                a0 = a0_def,
+                                                                is_mismatched = True)
 
 
     gp_sim.estimateDisturbance(px_idle, py_idle, time_idle)
 
 
     # THIS IS WHAT THE SIMULATION ACTUALLY GIVES US -- model mismatch && noise
-    px_sim,py_sim,alpha_sim,time_sim,freq_sim = run_sim(actions_learn,
-                                                         init_pos = np.array([0,0]),
-                                                         noise_var = noise_vars[i],
-                                                         a0=a0_def,is_mismatched=True)
+    px_sim, py_sim, alpha_sim, time_sim, freq_sim = run_sim(actions_learn,
+                                                         init_pos = np.array([0, 0]),
+                                                         noise_var = noise_var,
+                                                         a0 = a0_def,
+                                                         is_mismatched = True)
 
 
     # learn noise and a0 -- note px_desired and py_desired need to be at the same time
@@ -204,61 +206,71 @@ for i in range(len(noise_vars)):
 
     
     # THIS CALCULATES THE DESIRED TRAJECTORY FROM OUR a0 ESTIMATE
-    px_desired,py_desired,alpha_desired,time_desired,freq_desired = run_sim(actions_learn,
+    px_desired, py_desired, alpha_desired, time_desired, freq_desired = run_sim(actions_learn,
                                                                             init_pos = np.array([0,0]),
-                                                                            noise_var = 0.0,a0=a0_sim)
+                                                                            noise_var = 0.0,
+                                                                            a0 = a0_sim)
 
     # plot the desired vs achieved velocities
-    xys  = [(px_desired,py_desired),
-            (px_sim,py_sim),
-           ]
-    legends =["Desired Trajectory","Simulated Trajectory (no learning)"
-              ]
-    fig_title   = ["Learning Dataset"]
-    plot_xy(xys,legends =legends,fig_title =fig_title) 
+    xys = [
+        (px_desired, py_desired),
+        (px_sim,py_sim)]
+
+    legends = [
+            "Desired Trajectory",
+            "Simulated Trajectory (no learning)"]
+    fig_title = ["Learning Dataset"]
+    plot_xy(xys, legends = legends, fig_title = fig_title) 
     
 
     ###### END OF LEARNING, NOW WE DO TESTING ######
 
 
     # Desired Trajectory: no noise, no learning -- this is the desired trajectory
-    px_desired,py_desired,alpha_desired,time_desired,freq_desired = run_sim(actions,
-                                                             init_pos = np.array([0,0]),
-                                                             noise_var = 0.0,
-                                                             a0=a0_sim) #assume we used a0_sim to generate the control actions
+    px_desired, py_desired, alpha_desired, time_desired, freq_desired = run_sim(
+                                                            actions,
+                                                            init_pos = np.array([0,0]),
+                                                            noise_var = 0.0,
+                                                            a0 = a0_sim
+                                                            ) #assume we used a0_sim to generate the control actions
 
     # Baseline: actual noise and parameters, no learning -- this is the achieved trajectory
-    px_baseline,py_baseline,alpha_baseline, time_baseline,freq_baseline = run_sim(actions,
-                                                         init_pos = np.array([0,0]),
-                                                         noise_var = noise_vars[i],
-                                                         a0=a0_def,is_mismatched=True)
+    px_baseline, py_baseline, alpha_baseline, time_baseline, freq_baseline = run_sim(
+                                                            actions,
+                                                            init_pos = np.array([0, 0]),
+                                                            noise_var = noise_var,
+                                                            a0 = a0_def,
+                                                            is_mismatched = True)
 
     #generate our desired, predicted, and error bars for velocity for the test
-    vd = np.zeros( (len(actions), 2) )
-    v_pred = np.zeros( (len(actions), 2) )
-    v_stdv  = np.zeros( (len(actions), 2) )
+    vd = np.zeros((len(actions), 2))
+    v_pred = np.zeros((len(actions), 2))
+    v_stdv = np.zeros((len(actions), 2))
     actions_corrected = np.zeros(actions.shape)
 
     for ii in range(len(actions_corrected)):
-        vd[ii,:] = a0_sim*freq*np.array( [np.cos(actions[ii,1]), np.sin(actions[ii,1])] ).reshape(1,-1)
+        vd[ii,:] = a0_sim * freq * np.array( [np.cos(actions[ii,1]), np.sin(actions[ii,1])] ).reshape(1,-1)
         #actions_corrected[ii,0] = actions[ii,0] #don't correct the rolling frequency
-        A, muX, muY, sigX, sigY = find_alpha_corrected(vd[ii],gp_sim)
+        A, muX, muY, sigX, sigY = find_alpha_corrected(vd[ii], gp_sim)
         
-        actions_corrected[ii,0] = A[1]
-        actions_corrected[ii,1] = A[0]
+        actions_corrected[ii, 0] = A[1]
+        actions_corrected[ii, 1] = A[0]
         
         #our predicted velocity is model + error
-        v_pred[ii,0] = a0_sim*freq*np.cos(actions_corrected[ii,1]) + muX
-        v_pred[ii,1] = a0_sim*freq*np.sin(actions_corrected[ii,1]) + muY
+        v_pred[ii,0] = a0_sim * freq * np.cos(actions_corrected[ii,1]) + muX
+        v_pred[ii,1] = a0_sim * freq * np.sin(actions_corrected[ii,1]) + muY
         v_stdv[ii,0] = sigX
         v_stdv[ii,1] = sigY
         
     
      # sim: noise, learning
-    px_learn,py_learn,alpha_learn, time_learn,freq_learn = run_sim(actions_corrected,
-                                                         init_pos = np.array([0,0]),
-                                                         noise_var = noise_vars[i],
-                                                         a0=a0_def,is_mismatched=True) #simulate using the true value of a0
+    px_learn, py_learn, alpha_learn, time_learn, freq_learn = run_sim(
+                                                            actions_corrected,
+                                                            init_pos = np.array([0, 0]),
+                                                            noise_var = noise_var,
+                                                            a0 = a0_def,
+                                                            is_mismatched = True
+                                                            ) #simulate using the true value of a0
     
     
     #### Plot Resulting Trajectories
