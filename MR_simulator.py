@@ -9,7 +9,7 @@ class Simulator:
     def __init__(self):
         self.last_state = None
         self.current_action = None
-        self.time_span = 1.0/30         #  seconds for each iteration
+        self.time_span = dt = 0.030 #assume a timestep of 30 ms
         self.number_iterations = 100  #  iterations for each step
         self.integrator = None # 
         ##MR Constants
