@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize, minimize_scalar
 
 
-def objective(X, a0, freq, v_d, GPx, GPy):
+def objective(X, a0, freq, v_d, GPx, GPy, Dx, Dy):
 
     
     alpha = X
@@ -20,7 +20,8 @@ def objective(X, a0, freq, v_d, GPx, GPy):
 
     #return (a0*freq*np.cos(alpha) + mux - v_d[0])**2 + (a0*freq*np.sin(alpha) + mux - v_d[1])**2
 
-    return (a0*freq)**2 + (mux - v_d[0])**2 + 2*a0*freq*np.cos(alpha)*(mux - v_d[0]) + (muy - v_d[1])**2 + 2*a0*freq*np.sin(alpha)*(muy - v_d[1])
+    return (a0*freq)**2 + (mux + Dx - v_d[0])**2 + 2*a0*freq*np.cos(alpha)*(mux + Dx - v_d[0]) \
+                        + (muy + Dy - v_d[1])**2 + 2*a0*freq*np.sin(alpha)*(muy + Dy - v_d[1])
 
 
 class LearningModule:
@@ -232,7 +233,7 @@ class LearningModule:
         
         #result = minimize(objective, x0, method='Powell', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi)])
 
-        result = minimize_scalar(objective, method='Bounded', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[-np.pi, np.pi] )
+        result = minimize_scalar(objective, method='Bounded', args=(self.a0, self.freq, vd, self.gprX, self.gprY, self.Dx, self.Dy), bounds=[-np.pi, np.pi] )
 
 
         X = np.array(result.x)

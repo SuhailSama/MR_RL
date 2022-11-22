@@ -77,7 +77,7 @@ class Simulator:
         if self.is_mismatched:
             a0 = self.a0_linear(alpha_t, f_t, sigma/4)
             dx1 = a0 * f_t  * np.cos(alpha_t + 0.1) + np.random.normal(mu, sigma, 1)[0] + 0.2
-            dx2 = a0 * f_t  * np.sin(alpha_t + 0.1) + np.random.normal(mu, sigma, 1)[0] - 0.1
+            dx2 = a0 * f_t  * np.sin(alpha_t - 0.15) + np.random.normal(mu, sigma, 1)[0] - 0.1
         else:
             dx1 = a0 * f_t  * np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
             dx2 = a0 * f_t  * np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0] 

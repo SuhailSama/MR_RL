@@ -180,7 +180,7 @@ actions[:,2] = np.arange(0, dt*time_steps, dt)
 #                        for t in range(1,time_steps)]) # [T,action_dim]
 
 
-noise_vars= [0.0]
+noise_vars= [0.5]
 for i in range(len(noise_vars)):
 
 
