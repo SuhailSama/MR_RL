@@ -61,31 +61,45 @@ def run_sim(actions,init_pos=None,noise_var = 1,a0 =1, is_mismatched = False):
     return X,Y,alpha,time,freq
 
 
-def plot_xy(xys, legends=[""],fig_title=[""]):
+def plot_xy(xys, legends=[""],fig_title=[""], savefile_name=''):
     fig, ax = plt.subplots()
 
+    count = 0
+
     for (X,Y),legend in zip(xys,legends):
-        ax.plot(X,Y, label=legend)
+        if count is 0:
+            ax.plot(X,Y, '--', label=legend)
+        else:
+            ax.plot(X,Y, label=legend)
+        count = count + 1
    
     ax.legend(loc='upper left', 
                        shadow=True, fontsize='x-small')
-    fig.suptitle(fig_title[0])
+    if savefile_name:
+        plt.savefig(savefile_name, bbox_inches='tight')
     plt.show()
 
-def plot_bounded_curves(curves, bounds, legends=[""], fig_title=[""]):
+
+def plot_bounded_curves(curves, bounds, legends=[""], fig_title=[""], savefile_name=''):
     fig, ax = plt.subplots()
     for (t, lb, ub) in bounds:
         ax.fill_between(t, lb, ub)
 
     colors = cm.Set1(np.linspace(0, 1, len(curves)))
     for (X,Y),legend,c in zip(curves,legends,colors):
-        ax.plot(X,Y, color=c, label=legend)
+        ax.plot(X,Y, color='k', label=legend)
 
 
     ax.legend(loc='upper left', 
                 shadow=True, fontsize='x-small')
     fig.suptitle(fig_title[0])
+    plt.xlabel('time (s)')
+    plt.ylabel('velocity error (microns/s)')
+    if savefile_name:
+        plt.savefig(savefile_name, bbox_inches='tight')
+        
     plt.show()   
+
 
 
 def plot_traj(xts, legends=[""],fig_title=[""]):

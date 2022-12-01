@@ -81,10 +81,8 @@ class Simulator:
         else:
             dx1 = a0 * f_t  * np.cos(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
             dx2 = a0 * f_t  * np.sin(alpha_t) + np.random.normal(mu, sigma, 1)[0] 
-
-        # print("\n Actions taken:" , self.current_action)
-        # print("\n np.cos(alpha_t) ",np.cos(alpha_t),"np.sin(alpha_t) ",np.sin(alpha_t))
-        # print("\n dx1: ", dx1 , "dx2: ", dx2)
+        
+        
         fx = np.array([dx1, dx2])
         self.state_prime = fx
         return fx

@@ -110,23 +110,14 @@ class LearningModule:
         speed = speed[N:-N]
 
         a0 = np.median(speed / freq)
-
-        #generate empty NP arrays for X (data) and Y (outputs)
-        #X = alpha.reshape(-1,1)
+       
         
         X = np.array(alpha_sim).reshape(-1,1)
                 
-        #calculate the desired speed
-        
-   
-        
-        
+
         Yx = vx - a0 * freq * np.cos(alpha_sim)
         Yy = vy - a0 * freq * np.sin(alpha_sim)
 
-
-        print(X.shape)
-        print(Yx.shape)
 
         self.gprX.fit(X, Yx)
         self.gprY.fit(X, Yy)
@@ -141,16 +132,6 @@ class LearningModule:
         
         e = self.gprX.predict(Xe)
         
-        #plt.figure()
-        #plt.plot(X, Yx, 'kx')
-        #plt.plot(a, e, '-r')
-        #plt.show()
-
-        #plot the velocity error versus time
-        #plt.figure()
-        #plt.plot(time, vx, time, a0*freq*np.cos(alpha))
-        #plt.show()
-
 
         self.X = X; self.Yx = Yx; self.Yy = Yy
         self.a0 = a0
@@ -231,8 +212,6 @@ class LearningModule:
         x0 = np.array(alpha_d)
         
         
-        #result = minimize(objective, x0, method='Powell', args=(self.a0, self.freq, vd, self.gprX, self.gprY), bounds=[(-np.pi, np.pi)])
-
         result = minimize_scalar(objective, method='Bounded', args=(self.a0, self.freq, vd, self.gprX, self.gprY, self.Dx, self.Dy), bounds=[-np.pi, np.pi] )
 
 
@@ -243,23 +222,6 @@ class LearningModule:
         muY,sigY = self.gprY.predict(X.reshape(1,-1), return_std=True)
 
         return X, muX, muY, sigX, sigY
-
-    '''
-    #get bounds on learning - 2stdv ~= 95% of data
-    plt.figure()
-    plt.fill_between(time,   v_learned[:,0] - 2*gpX[:,1],   v_learned[:,0] + 2*gpX[:,1])
-    plt.fill_between(time,   v_learned[:,0] -   gpX[:,1],   v_learned[:,0] +   gpX[:,1])
-
-    plt.plot(time, v_learned[:,0], '-r', label="learned")
-    plt.plot(time, v_desired[:,0], '-b', label="desired")
-    plt.plot(time, vx, '-k', label="data")
-
-    plt.legend()
-
-    plt.show()
-
-    '''
-
 
 
 
