@@ -80,7 +80,7 @@ def plot_xy(xys, legends=[""],fig_title=[""], savefile_name=''):
     plt.show()
 
 
-def plot_bounded_curves(curves, bounds, legends=[""], fig_title=[""], savefile_name=''):
+def plot_bounded_curves(curves, bounds, legends=[""], fig_title=[""], savefile_name='', nn=[]):
     fig, ax = plt.subplots()
     for (t, lb, ub) in bounds:
         ax.fill_between(t, lb, ub)
@@ -89,6 +89,9 @@ def plot_bounded_curves(curves, bounds, legends=[""], fig_title=[""], savefile_n
     for (X,Y),legend,c in zip(curves,legends,colors):
         ax.plot(X,Y, color='k', label=legend)
 
+    if nn:
+        for (t, v) in nn:
+            ax.plot(t, v, color='r');
 
     ax.legend(loc='upper left', 
                 shadow=True, fontsize='x-small')
@@ -99,6 +102,16 @@ def plot_bounded_curves(curves, bounds, legends=[""], fig_title=[""], savefile_n
         plt.savefig(savefile_name, bbox_inches='tight')
         
     plt.show()   
+
+def plot_curve(y, xlabel, ylabel,savefile_name=''):
+    fig, ax = plt.subplots()
+    ax.plot(y)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    if savefile_name:
+        plt.savefig(savefile_name, bbox_inches='tight')
+    
+    plt.show()
 
 
 
